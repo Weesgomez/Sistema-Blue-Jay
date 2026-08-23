@@ -266,6 +266,9 @@
   #view-sublimacao{position:fixed; top:0; left:0; right:0; bottom:0;}
   body.app-unlocked #view-sublimacao{top:46px;}
   #view-sublimacao iframe{width:100%; height:100%; border:0; display:block; background:#08090c;}
+  #view-estoque{position:fixed; top:0; left:0; right:0; bottom:0;}
+  body.app-unlocked #view-estoque{top:46px;}
+  #view-estoque iframe{width:100%; height:100%; border:0; display:block; background:#08090c;}
 </style>
 </head>
 <body>
@@ -274,6 +277,7 @@
   <button type="button" class="app-switch-btn active" data-view="debitos">💰 Controle de Débitos</button>
   <button type="button" class="app-switch-btn" data-view="entregas">🚚 Entrega Direta e Flex</button>
   <button type="button" class="app-switch-btn" data-view="sublimacao">👕 Débitos Sublimação Afonso</button>
+  <button type="button" class="app-switch-btn" data-view="estoque">📦 Controle de Estoque</button>
 </div>
 
 <div id="view-debitos">
@@ -3436,25 +3440,535 @@ updateFloatingScrollbar();
 </html>
 </script>
 
+<div id="view-estoque" style="display:none;">
+  <iframe id="estoque-iframe" title="Controle de Estoque"></iframe>
+</div>
+<script type="text/plain" id="estoque-source"><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Estoque</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/JsBarcode/3.11.5/JsBarcode.all.min.js"><\/script>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #08090c;
+    --panel: #131519;
+    --panel-2: #191c22;
+    --line: #1f232b;
+    --ink: #eef1f7;
+    --ink-dim: #9aa2b1;
+    --accent: #3b82f6;
+    --accent-ink: #ffffff;
+    --danger: #f43f5e;
+    --ok: #22c55e;
+    --radius: 14px;
+    --radius-sm: 9px;
+    --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 20px 40px -22px rgba(0,0,0,.7);
+    --mono: 'JetBrains Mono', 'Courier New', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  :root[data-theme="light"]{
+    color-scheme: light;
+    --bg: #EEF1F8;
+    --panel: #FFFFFF;
+    --panel-2: #F7F8FC;
+    --line: #E4E7F1;
+    --ink: #171B2E;
+    --ink-dim: #5B6178;
+    --accent: #2F5597;
+    --accent-ink: #ffffff;
+    --danger: #DA4453;
+    --ok: #1E9E5B;
+    --shadow: 0 1px 2px rgba(23,27,46,.04), 0 8px 24px -12px rgba(23,27,46,.12);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    background-image: radial-gradient(1200px 560px at 15% -12%, rgba(59,130,246,.10), transparent 60%),
+                       radial-gradient(900px 480px at 100% 0%, rgba(34,211,238,.06), transparent 55%);
+    background-attachment: fixed;
+    color: var(--ink);
+    font-family: var(--sans);
+    padding: 24px;
+    min-height: 100vh;
+    transition: background-color .2s ease, color .2s ease;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid var(--line);
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header h1 {
+    font-family: var(--sans);
+    font-weight: 650;
+    font-size: 20px;
+    letter-spacing: -0.005em;
+    margin: 0;
+  }
+  header .sub { color: var(--ink-dim); font-size: 13px; margin-top: 4px; }
+  .header-right { display: flex; align-items: center; gap: 8px; }
+  .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 3px 8px;
+    border-radius: 3px;
+  }
+  .grid { display: grid; grid-template-columns: 1.1fr 1.4fr; gap: 18px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+  }
+  .panel h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--ink-dim);
+    margin: 0 0 14px 0;
+    font-family: var(--mono);
+  }
+  .scan-box {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  input, select, button {
+    font-family: var(--sans);
+    font-size: 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    color: var(--ink);
+    padding: 9px 10px;
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #scanInput {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 16px;
+    letter-spacing: 1px;
+  }
+  .btn {
+    cursor: pointer;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    font-weight: 600;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary {
+    background: var(--panel-2);
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .btn.danger { background: var(--danger); color: #fff; }
+  .scan-feedback {
+    font-family: var(--mono);
+    font-size: 13px;
+    min-height: 18px;
+    padding-top: 2px;
+  }
+  .scan-feedback.ok { color: var(--ok); }
+  .scan-feedback.err { color: var(--danger); }
+  form.new-item { display: flex; flex-direction: column; gap: 10px; }
+  form.new-item .row { display: flex; gap: 8px; }
+  form.new-item .row > * { flex: 1; }
+  label.small { font-size: 11px; color: var(--ink-dim); margin-bottom: 3px; display: block; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+  th { color: var(--ink-dim); font-family: var(--mono); font-size: 11px; text-transform: uppercase; }
+  tr.low td { color: var(--danger); }
+  .qty-pill {
+    font-family: var(--mono);
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    display: inline-block;
+  }
+  tr.low .qty-pill { background: rgba(244,63,94,0.15); }
+  .item-actions { display: flex; gap: 6px; }
+  .item-actions button { padding: 4px 8px; font-size: 12px; }
+  .history-list { max-height: 300px; overflow-y: auto; font-family: var(--mono); font-size: 12px; }
+  .history-row {
+    display: flex; justify-content: space-between;
+    padding: 6px 0; border-bottom: 1px solid var(--line);
+    color: var(--ink-dim);
+  }
+  .history-row .entrada { color: var(--ok); }
+  .history-row .saida { color: var(--danger); }
+  .tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+  .tabs button {
+    flex: 1;
+    background: var(--panel-2);
+    color: var(--ink-dim);
+    border: 1px solid var(--line);
+  }
+  .tabs button.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .empty { color: var(--ink-dim); font-size: 13px; padding: 20px 0; text-align: center; }
+  .barcode-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+  }
+  .barcode-modal.open { display: flex; }
+  .barcode-card {
+    background: #fff; color: #000; border-radius: 8px; padding: 20px;
+    text-align: center; width: 300px;
+  }
+  .barcode-card .label-name { font-family: var(--sans); font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  .barcode-card .label-controls {
+    display: flex; gap: 8px; margin-top: 14px; justify-content: center;
+  }
+  .settings-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+  .settings-row label { font-size: 12px; color: var(--ink-dim); }
+  .settings-row input { width: 70px; }
+  @media print {
+    body * { visibility: hidden; }
+    #printArea, #printArea * { visibility: visible; }
+    #printArea { position: absolute; top: 0; left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Controle de Estoque</h1>
+      <div class="sub">Peças em branco, por tipo + tamanho — separado do estoque de estampas</div>
+    </div>
+    <div class="header-right">
+      <button class="btn secondary" id="btn-theme-toggle" title="Alternar tema claro/escuro">☀️ Claro</button>
+      <span class="tag" id="statusTag">carregando…</span>
+    </div>
+  </header>
+
+  <div class="scan-box panel" style="margin-bottom:18px; display:flex; align-items:center;">
+    <input id="scanInput" placeholder="Bipar código de barras aqui e apertar Enter…" autofocus>
+    <button class="btn" onclick="processScan()">Dar baixa</button>
+  </div>
+  <div class="scan-feedback" id="scanFeedback"></div>
+
+  <div class="grid" style="margin-top:16px;">
+    <div class="panel">
+      <h2>Cadastrar novo item</h2>
+      <form class="new-item" onsubmit="return addItem(event)">
+        <div class="row">
+          <div>
+            <label class="small">Tipo de peça</label>
+            <input id="fName" placeholder="Ex: Regata Oversized" required>
+          </div>
+          <div>
+            <label class="small">Tamanho</label>
+            <input id="fSize" placeholder="Ex: P, M, G, GG" required>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label class="small">SKU (código único)</label>
+            <input id="fSku" placeholder="Ex: REG-OVER-P" required>
+          </div>
+          <div>
+            <label class="small">Qtd inicial</label>
+            <input id="fQty" type="number" min="0" value="0" required>
+          </div>
+          <div>
+            <label class="small">Estoque mínimo</label>
+            <input id="fMin" type="number" min="0" value="5" required>
+          </div>
+        </div>
+        <button class="btn" type="submit">Cadastrar item</button>
+      </form>
+
+      <div style="margin-top:20px;">
+        <h2>Configuração da etiqueta</h2>
+        <div class="settings-row">
+          <label>Largura (mm)</label>
+          <input id="labelW" type="number" value="50" onchange="saveSettings()">
+          <label>Altura (mm)</label>
+          <input id="labelH" type="number" value="30" onchange="saveSettings()">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="tabs">
+        <button id="tabItens" class="active" onclick="switchTab('itens')">Itens em estoque</button>
+        <button id="tabHist" onclick="switchTab('hist')">Histórico</button>
+      </div>
+
+      <div id="viewItens">
+        <table>
+          <thead>
+            <tr><th>Item</th><th>SKU</th><th>Qtd</th><th></th></tr>
+          </thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+        <div id="itemsEmpty" class="empty" style="display:none;">Nenhum item cadastrado ainda.</div>
+      </div>
+
+      <div id="viewHist" style="display:none;">
+        <div class="history-list" id="historyList"></div>
+        <div id="histEmpty" class="empty" style="display:none;">Nenhuma movimentação ainda.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="barcode-modal" id="barcodeModal">
+  <div class="barcode-card">
+    <div class="label-name" id="bcName"></div>
+    <div id="printArea">
+      <svg id="bcSvg"></svg>
+    </div>
+    <div class="label-controls">
+      <button class="btn secondary" onclick="closeBarcodeModal()">Fechar</button>
+      <button class="btn" onclick="window.print()">Imprimir etiqueta</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let state = { items: [], history: [], settings: { labelW: 50, labelH: 30 } };
+const STORAGE_KEY = 'estoque-pecas-state';
+
+async function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      state = JSON.parse(raw);
+      if (!state.settings) state.settings = { labelW: 50, labelH: 30 };
+    }
+  } catch (e) {
+    // no data yet
+  }
+  document.getElementById('labelW').value = state.settings.labelW;
+  document.getElementById('labelH').value = state.settings.labelH;
+  render();
+  document.getElementById('statusTag').textContent = 'salvo neste navegador';
+}
+
+async function persist() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    document.getElementById('statusTag').textContent = 'erro ao salvar';
+  }
+}
+
+function addItem(ev) {
+  ev.preventDefault();
+  const nome = document.getElementById('fName').value.trim();
+  const tamanho = document.getElementById('fSize').value.trim();
+  const sku = document.getElementById('fSku').value.trim().toUpperCase();
+  const qty = parseInt(document.getElementById('fQty').value, 10) || 0;
+  const min = parseInt(document.getElementById('fMin').value, 10) || 0;
+
+  if (state.items.some(i => i.sku === sku)) {
+    alert('Já existe um item com esse SKU.');
+    return false;
+  }
+
+  state.items.push({ id: crypto.randomUUID(), nome, tamanho, sku, qty, min });
+  if (qty > 0) {
+    state.history.unshift({ date: new Date().toISOString(), sku, nome: `${nome} ${tamanho}`, tipo: 'entrada', qtd: qty });
+  }
+  persist();
+  render();
+  ev.target.reset();
+  document.getElementById('fQty').value = 0;
+  document.getElementById('fMin').value = 5;
+  return false;
+}
+
+function processScan() {
+  const input = document.getElementById('scanInput');
+  const code = input.value.trim().toUpperCase();
+  const feedback = document.getElementById('scanFeedback');
+  input.value = '';
+  input.focus();
+  if (!code) return;
+
+  const item = state.items.find(i => i.sku === code);
+  if (!item) {
+    feedback.textContent = `Código "${code}" não encontrado.`;
+    feedback.className = 'scan-feedback err';
+    return;
+  }
+  if (item.qty <= 0) {
+    feedback.textContent = `${item.nome} ${item.tamanho} já está zerado.`;
+    feedback.className = 'scan-feedback err';
+    return;
+  }
+  item.qty -= 1;
+  state.history.unshift({ date: new Date().toISOString(), sku: item.sku, nome: `${item.nome} ${item.tamanho}`, tipo: 'saida', qtd: 1 });
+  persist();
+  render();
+  feedback.textContent = `Baixa dada: ${item.nome} ${item.tamanho} — restam ${item.qty}.`;
+  feedback.className = 'scan-feedback ok';
+}
+
+document.getElementById('scanInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); processScan(); }
+});
+
+function adjustQty(id, delta) {
+  const item = state.items.find(i => i.id === id);
+  if (!item) return;
+  item.qty = Math.max(0, item.qty + delta);
+  state.history.unshift({
+    date: new Date().toISOString(), sku: item.sku, nome: `${item.nome} ${item.tamanho}`,
+    tipo: delta > 0 ? 'entrada' : 'saida', qtd: Math.abs(delta)
+  });
+  persist();
+  render();
+}
+
+function removeItem(id) {
+  if (!confirm('Remover este item do estoque?')) return;
+  state.items = state.items.filter(i => i.id !== id);
+  persist();
+  render();
+}
+
+function saveSettings() {
+  state.settings.labelW = parseInt(document.getElementById('labelW').value, 10) || 50;
+  state.settings.labelH = parseInt(document.getElementById('labelH').value, 10) || 30;
+  persist();
+}
+
+function openBarcode(id) {
+  const item = state.items.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('bcName').textContent = `${item.nome} ${item.tamanho} — ${item.sku}`;
+  const modal = document.getElementById('barcodeModal');
+  modal.classList.add('open');
+  const svg = document.getElementById('bcSvg');
+  const w = state.settings.labelW, h = state.settings.labelH;
+  JsBarcode(svg, item.sku, {
+    format: 'CODE128',
+    width: 2,
+    height: Math.max(30, h * 2),
+    displayValue: true,
+    fontSize: 12,
+    margin: 8
+  });
+  document.getElementById('printArea').style.width = w + 'mm';
+}
+
+function closeBarcodeModal() {
+  document.getElementById('barcodeModal').classList.remove('open');
+}
+
+function switchTab(tab) {
+  document.getElementById('tabItens').classList.toggle('active', tab === 'itens');
+  document.getElementById('tabHist').classList.toggle('active', tab === 'hist');
+  document.getElementById('viewItens').style.display = tab === 'itens' ? 'block' : 'none';
+  document.getElementById('viewHist').style.display = tab === 'hist' ? 'block' : 'none';
+}
+
+function render() {
+  const body = document.getElementById('itemsBody');
+  const empty = document.getElementById('itemsEmpty');
+  body.innerHTML = '';
+  if (state.items.length === 0) {
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    state.items.slice().sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(item => {
+      const tr = document.createElement('tr');
+      if (item.qty <= item.min) tr.className = 'low';
+      tr.innerHTML = `
+        <td>${item.nome} <span style="color:var(--ink-dim)">(${item.tamanho})</span></td>
+        <td style="font-family:var(--mono)">${item.sku}</td>
+        <td><span class="qty-pill">${item.qty}</span> ${item.qty <= item.min ? '⚠️' : ''}</td>
+        <td class="item-actions">
+          <button class="btn secondary" onclick="adjustQty('${item.id}', 1)">+1</button>
+          <button class="btn secondary" onclick="adjustQty('${item.id}', -1)">-1</button>
+          <button class="btn secondary" onclick="openBarcode('${item.id}')">Etiqueta</button>
+          <button class="btn danger" onclick="removeItem('${item.id}')">✕</button>
+        </td>`;
+      body.appendChild(tr);
+    });
+  }
+
+  const histList = document.getElementById('historyList');
+  const histEmpty = document.getElementById('histEmpty');
+  histList.innerHTML = '';
+  if (state.history.length === 0) {
+    histEmpty.style.display = 'block';
+  } else {
+    histEmpty.style.display = 'none';
+    state.history.slice(0, 200).forEach(h => {
+      const d = new Date(h.date);
+      const row = document.createElement('div');
+      row.className = 'history-row';
+      row.innerHTML = `
+        <span>${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})} — ${h.nome}</span>
+        <span class="${h.tipo}">${h.tipo === 'entrada' ? '+' : '-'}${h.qtd}</span>`;
+      histList.appendChild(row);
+    });
+  }
+}
+
+// ---------- Tema claro/escuro ----------
+(function(){
+  var themeBtn = document.getElementById('btn-theme-toggle');
+  if(!themeBtn) return;
+  themeBtn.addEventListener('click', function(){
+    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    if(isLight){
+      document.documentElement.removeAttribute('data-theme');
+      themeBtn.textContent = '☀️ Claro';
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+      themeBtn.textContent = '🌙 Escuro';
+    }
+  });
+})();
+
+loadState();
+<\/script>
+</body>
+</html>
+</script>
+
 <script id="app-data" type="application/json">SEED_PLACEHOLDER</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
-  // ---------- Seletor entre apps (Débitos / Entrega Direta / Sublimação) ----------
+  // ---------- Seletor entre apps (Débitos / Entrega Direta / Sublimação / Estoque) ----------
   (function(){
     "use strict";
     var viewDebitos = document.getElementById('view-debitos');
     var viewEntregas = document.getElementById('view-entregas');
     var viewSublimacao = document.getElementById('view-sublimacao');
+    var viewEstoque = document.getElementById('view-estoque');
     var iframe = document.getElementById('entregas-iframe');
     var subIframe = document.getElementById('sublimacao-iframe');
+    var estIframe = document.getElementById('estoque-iframe');
     var btns = document.querySelectorAll('#app-switcher .app-switch-btn');
     var iframeLoaded = false;
     var subIframeLoaded = false;
+    var estIframeLoaded = false;
 
     function hideAll(){
       viewDebitos.style.display = 'none';
       viewEntregas.style.display = 'none';
       viewSublimacao.style.display = 'none';
+      viewEstoque.style.display = 'none';
     }
 
     function switchTo(view){
@@ -3475,6 +3989,14 @@ updateFloatingScrollbar();
           var raw = (srcEl.textContent || '').replace(/<\\\/script/gi, '</script');
           subIframe.srcdoc = raw;
           subIframeLoaded = true;
+        }
+      } else if(view === 'estoque'){
+        viewEstoque.style.display = 'block';
+        if(!estIframeLoaded){
+          var estSrcEl = document.getElementById('estoque-source');
+          var estRaw = (estSrcEl.textContent || '').replace(/<\\\/script/gi, '</script');
+          estIframe.srcdoc = estRaw;
+          estIframeLoaded = true;
         }
       } else {
         viewDebitos.style.display = '';
