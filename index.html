@@ -249,6 +249,9 @@
   #view-entregas{position:fixed; top:0; left:0; right:0; bottom:0;}
   body.app-unlocked #view-entregas{top:46px;}
   #view-entregas iframe{width:100%; height:100%; border:0; display:block; background:#fff;}
+  #view-sublimacao{position:fixed; top:0; left:0; right:0; bottom:0;}
+  body.app-unlocked #view-sublimacao{top:46px;}
+  #view-sublimacao iframe{width:100%; height:100%; border:0; display:block; background:#08090c;}
 </style>
 </head>
 <body>
@@ -256,6 +259,7 @@
 <div id="app-switcher">
   <button type="button" class="app-switch-btn active" data-view="debitos">💰 Controle de Débitos</button>
   <button type="button" class="app-switch-btn" data-view="entregas">🚚 Entrega Direta e Flex</button>
+  <button type="button" class="app-switch-btn" data-view="sublimacao">👕 Débitos Sublimação Afonso</button>
 </div>
 
 <div id="view-debitos">
@@ -412,27 +416,2034 @@
   <iframe id="entregas-iframe" title="Entrega Direta e Flex" src="about:blank"></iframe>
 </div>
 
+<div id="view-sublimacao" style="display:none;">
+  <iframe id="sublimacao-iframe" title="Débitos Sublimação Afonso"></iframe>
+</div>
+<script type="text/plain" id="sublimacao-source"><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camisetas Drop Afonso</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#08090c;
+    --bg-radial: radial-gradient(1200px 560px at 15% -12%, rgba(59,130,246,.10), transparent 60%),
+                 radial-gradient(900px 480px at 100% 0%, rgba(34,211,238,.06), transparent 55%);
+    --panel:#131519; --panel-2:#191c22; --panel-3:#1f232b;
+    --line:rgba(255,255,255,.07); --line-strong:rgba(255,255,255,.14);
+    --ink:#eef1f7; --ink-soft:#9aa2b1; --ink-mute:#666e7d;
+    --accent:#3b82f6; --accent-2:#22d3ee; --accent-soft:rgba(59,130,246,.14);
+    --accent-glow:rgba(59,130,246,.45);
+    --ok:#22c55e; --ok-bg:rgba(34,197,94,.13);
+    --bad:#f43f5e; --bad-bg:rgba(244,63,94,.13);
+    --radius:14px; --radius-sm:9px;
+    --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 20px 40px -22px rgba(0,0,0,.7);
+    --font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:var(--font);
+    background:var(--bg); background-image:var(--bg-radial); background-attachment:fixed;
+    color:var(--ink); font-size:14px; -webkit-font-smoothing:antialiased;
+  }
+  header{
+    background:rgba(10,11,15,.75); backdrop-filter:blur(14px) saturate(140%);
+    border-bottom:1px solid var(--line);
+    padding:18px 26px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+    position:sticky; top:0; z-index:20;
+  }
+  header h1{font-size:17px; margin:0; font-weight:650; letter-spacing:-.005em;}
+  header p{margin:3px 0 0; color:var(--ink-soft); font-size:12px;}
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap;}
+  button{
+    font:inherit; font-weight:600; font-size:12.5px; cursor:pointer; border-radius:var(--radius-sm);
+    border:1px solid var(--line-strong); background:var(--panel-2); color:var(--ink-soft); padding:9px 14px;
+    transition:background .15s, color .15s, border-color .15s, transform .1s;
+  }
+  button:hover{background:var(--panel-3); color:var(--ink); border-color:rgba(255,255,255,.24);}
+  button:active{transform:translateY(1px);}
+  button.primary{
+    background:linear-gradient(155deg, var(--accent), #1d4ed8); color:#fff; border-color:transparent;
+    box-shadow:0 8px 20px -8px var(--accent-glow), 0 0 0 1px rgba(255,255,255,.06) inset;
+  }
+  button.primary:hover{filter:brightness(1.08); background:linear-gradient(155deg, var(--accent), #1d4ed8);}
+  button.ghost{border:1px solid var(--line); background:transparent; color:var(--ink-soft);}
+  button.ghost:hover{background:var(--panel-2); color:var(--ink);}
+  main{max-width:1180px; margin:0 auto; padding:24px 26px 70px;}
+
+  .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px;}
+  @media (max-width:860px){.kpi-row{grid-template-columns:repeat(2,1fr);}}
+  @media (max-width:480px){.kpi-row{grid-template-columns:1fr;}}
+  .kpi-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 18px; box-shadow:var(--shadow);
+  }
+  .kpi-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-mute); font-weight:700; margin-bottom:8px;}
+  .kpi-value{font-size:23px; font-weight:700; letter-spacing:-.01em; color:var(--ink);}
+  .kpi-value.neg{color:var(--bad);}
+  .kpi-value.pos{color:var(--ok);}
+  .kpi-sub{font-size:11.5px; color:var(--ink-mute); margin-top:6px;}
+  .kpi-sub.diff-up{color:var(--bad);}
+  .kpi-sub.diff-down{color:var(--ok);}
+
+  .quinzena-bar{display:flex; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap;}
+  .quinzena-tabs{display:flex; gap:7px; flex-wrap:wrap; flex:1;}
+  .qtab{
+    padding:8px 15px; border-radius:999px; border:1px solid var(--line-strong); background:var(--panel-2);
+    cursor:pointer; font-size:12.5px; font-weight:600; color:var(--ink-soft); white-space:nowrap;
+    transition:background .15s, color .15s, box-shadow .15s;
+  }
+  .qtab:hover{color:var(--ink); border-color:rgba(255,255,255,.26);}
+  .qtab.active{background:linear-gradient(155deg, var(--accent), #1d4ed8); border-color:transparent; color:#fff;
+    box-shadow:0 6px 16px -6px var(--accent-glow);}
+
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px 22px; margin-bottom:18px; box-shadow:var(--shadow);
+  }
+  .card h2{font-size:14.5px; margin:0 0 4px; font-weight:650; letter-spacing:.005em;
+    display:flex; align-items:center; gap:9px;}
+  .card h2::before{content:'';width:7px;height:7px;border-radius:2px;background:var(--accent);
+    box-shadow:0 0 10px 1px var(--accent-glow); flex:none;}
+  .card .sub{color:var(--ink-mute); font-size:12px; margin-bottom:16px;}
+
+  #person-table-wrap, .table-scroll{
+    overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:8px;
+  }
+  #person-table-wrap table, .table-scroll table{ min-width:560px; width:100%; }
+  th:first-child, td:first-child{
+    position:sticky; left:0; background:var(--panel); z-index:1;
+    box-shadow:2px 0 6px -2px rgba(0,0,0,.35);
+  }
+  tr.total-row td:first-child{ background:var(--panel-2); }
+  @media (max-width:600px){
+    .card{padding:16px 14px;}
+    table{font-size:12px;}
+    th, td{padding:7px 5px;}
+    td input{width:48px; padding:5px 6px; font-size:12px;}
+    .kpi-value{font-size:20px;}
+  }
+
+  .person-tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid var(--line); padding-bottom:14px;}
+  .ptab{
+    padding:7px 13px; border-radius:9px; border:1px solid var(--line); background:var(--panel-2);
+    cursor:pointer; font-size:12.5px; font-weight:600; color:var(--ink-soft); transition:all .15s;
+  }
+  .ptab:hover{color:var(--ink); border-color:var(--line-strong);}
+  .ptab.active{background:var(--accent-soft); border-color:rgba(59,130,246,.5); color:var(--accent-2); box-shadow:0 0 0 1px rgba(59,130,246,.25) inset;}
+
+  .price-row{display:flex; gap:22px; flex-wrap:wrap; align-items:center; margin-bottom:16px; font-size:11.5px; color:var(--ink-soft); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
+  .price-row label{display:flex; align-items:center; gap:8px;}
+  .price-row input{
+    width:76px; padding:7px 9px; border:1px solid var(--line-strong); border-radius:var(--radius-sm);
+    background:var(--panel-2); color:var(--ink); font:inherit; font-weight:700; font-size:13px; text-transform:none;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .price-row input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); background:var(--panel-3);}
+  .status-select{
+    padding:7px 12px; border-radius:999px; border:1px solid; font:inherit; font-weight:700; font-size:12px;
+    appearance:none; cursor:pointer; text-transform:none; letter-spacing:.02em;
+  }
+  .status-select.pago{background:var(--ok-bg); color:var(--ok); border-color:rgba(34,197,94,.35);}
+  .status-select.nao{background:var(--bad-bg); color:var(--bad); border-color:rgba(244,63,94,.35);}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th, td{padding:9px 8px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap;}
+  th{color:var(--ink-mute); font-weight:700; text-align:right; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;}
+  th:first-child, td:first-child{text-align:left;}
+  td{color:var(--ink); font-variant-numeric:tabular-nums;}
+  td input{
+    width:64px; padding:6px 8px; border:1px solid var(--line-strong); border-radius:8px;
+    background:var(--panel-2); color:var(--ink); font:inherit; font-weight:600; text-align:right;
+    transition:border-color .15s, box-shadow .15s, background .15s;
+  }
+  td input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); background:var(--panel-3);}
+  tbody tr:hover{background:rgba(255,255,255,.02);}
+  tr.weekend-row td{background:rgba(59,130,246,.055);}
+  tr.weekend-row:hover td{background:rgba(59,130,246,.11);}
+  tr.weekend-row td:first-child{background:rgba(59,130,246,.09);}
+  tr.weekend-row:hover td:first-child{background:rgba(59,130,246,.15);}
+  .day-tag{font-size:10px; font-weight:700; text-transform:uppercase; color:var(--accent-2); margin-left:6px; letter-spacing:.03em;}
+  tr.total-row td{font-weight:700; border-top:1px solid var(--line-strong); border-bottom:none; background:var(--panel-2); color:var(--ink);}
+  .tag{padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:.02em; border:1px solid;}
+  .tag.pago{background:var(--ok-bg); color:var(--ok); border-color:rgba(34,197,94,.35);}
+  .tag.nao{background:var(--bad-bg); color:var(--bad); border-color:rgba(244,63,94,.35);}
+
+  .resumo-table td:first-child{font-weight:650; color:var(--ink);}
+  .resumo-table tr:hover{background:rgba(255,255,255,.02);}
+
+  .foot-actions{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:8px;}
+  .hint{color:var(--ink-mute); font-size:11.5px; text-align:center; margin-top:14px; line-height:1.6;}
+  input[type=file]{display:none;}
+  .empty{color:var(--ink-mute); font-size:12.5px; padding:10px 0;}
+
+  /* ---- Privacidade / borrar valores ---- */
+  .money{transition:filter .15s;}
+  body.blurred .money{
+    filter:blur(6px);
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  body.blurred .money:hover{filter:blur(3px);}
+  button.icon-btn{padding:9px 12px;}
+  .btn-mini{
+    font:inherit; font-weight:600; font-size:11px; cursor:pointer; border-radius:7px;
+    border:1px solid var(--line-strong); background:var(--panel-2); color:var(--ink-soft);
+    padding:5px 9px; white-space:nowrap; transition:background .15s, color .15s, border-color .15s;
+  }
+  .btn-mini:hover{background:var(--panel-3); color:var(--ink); border-color:rgba(255,255,255,.24);}
+
+  /* ---- Login / nuvem (Supabase) ---- */
+  #auth-screen{
+    position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center;
+    background:var(--bg); background-image:var(--bg-radial); padding:20px;
+  }
+  #auth-screen.hidden{display:none;}
+  .auth-card{
+    width:100%; max-width:360px; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:28px 26px; box-shadow:var(--shadow);
+  }
+  .auth-card h2{margin:0 0 4px; font-size:16px;}
+  .auth-card .sub{color:var(--ink-mute); font-size:12px; margin-bottom:18px;}
+  .auth-field{margin-bottom:12px;}
+  .auth-field label{display:block; font-size:11px; color:var(--ink-soft); font-weight:700; margin-bottom:5px; text-transform:uppercase; letter-spacing:.04em;}
+  .auth-field input{
+    width:100%; padding:9px 11px; border:1px solid var(--line-strong); border-radius:var(--radius-sm);
+    background:var(--panel-2); color:var(--ink); font:inherit; font-size:13px;
+  }
+  .auth-field input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);}
+  .auth-actions{display:flex; gap:8px; margin-top:16px;}
+  .auth-actions button{flex:1;}
+  .auth-msg{font-size:12px; margin-top:12px; line-height:1.5;}
+  .auth-msg.err{color:var(--bad);}
+  .auth-msg.ok{color:var(--ok);}
+  #main-app{display:none;}
+  #main-app.ready{display:block;}
+  .save-status{font-size:11px; color:var(--ink-mute); display:flex; align-items:center; gap:6px; padding:0 4px;}
+  .save-status .dot{width:6px; height:6px; border-radius:50%; background:var(--ink-mute); flex:none;}
+  .save-status.saving .dot{background:var(--accent); box-shadow:0 0 6px 1px var(--accent-glow);}
+  .save-status.saved .dot{background:var(--ok);}
+  .save-status.error .dot{background:var(--bad);}
+  .auth-links{text-align:center; margin-top:14px; display:flex; flex-direction:column; gap:8px;}
+  .auth-links a{color:var(--ink-mute); font-size:11.5px; cursor:pointer;}
+  .auth-links a:hover{color:var(--ink-soft);}
+  .auth-form{display:block;}
+  .auth-form.hidden{display:none;}
+
+  .modal-backdrop{position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:20px;}
+  .modal-backdrop.hidden{display:none;}
+  .modal-box{width:100%; max-width:520px; max-height:80vh; overflow-y:auto; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:22px 24px; box-shadow:var(--shadow);}
+  .modal-box h2{margin:0 0 4px; font-size:15px;}
+  .modal-box .sub{color:var(--ink-mute); font-size:12px; margin-bottom:16px;}
+  .hist-item{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);}
+  .hist-item:last-child{border-bottom:none;}
+  .hist-item .when{font-size:12.5px; color:var(--ink);}
+  .modal-close{display:flex; justify-content:flex-end; margin-top:14px;}
+  .pdf-people-list{display:flex; flex-direction:column; gap:2px; margin-bottom:14px;}
+  .pdf-person-row{display:flex; align-items:center; gap:10px; padding:9px 4px; border-bottom:1px solid var(--line);}
+  .pdf-person-row:last-child{border-bottom:none;}
+  .pdf-person-row input[type=checkbox]{width:16px; height:16px; accent-color:var(--accent); cursor:pointer; flex:none;}
+  .pdf-person-row label{font-size:13px; font-weight:600; cursor:pointer; flex:1;}
+  .pdf-select-all{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .pdf-select-all .btn-mini{padding:4px 10px;}
+  .pdf-scope{display:flex; gap:8px; margin-bottom:16px;}
+  .pdf-scope label{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); font-weight:600; cursor:pointer;}
+  .pdf-scope input[type=radio]{accent-color:var(--accent); cursor:pointer;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Camisetas Drop Afonso</h1>
+    <p>Controle de débitos por quinzena · dia 1 ao 15, e dia 16 ao fim do mês. Clique em "+ Próxima quinzena" pra abrir a seguinte, já com a mesma estrutura.</p>
+  </div>
+  <div class="toolbar">
+    <span class="save-status" id="save-status"><span class="dot"></span><span id="save-status-text">—</span></span>
+    <button class="ghost icon-btn" id="btn-history" title="Ver versões salvas anteriormente">🕓 Histórico</button>
+    <button class="ghost icon-btn" id="btn-toggle-privacy" title="Borrar/mostrar os valores em R$">🙈 Ocultar valores</button>
+    <button class="ghost icon-btn" id="btn-set-key" title="Definir ou alterar a chave usada para revelar os valores">🔑 Chave</button>
+    <button class="ghost" id="btn-import">⬆️ Importar dados</button>
+    <input type="file" id="file-import" accept="application/json">
+    <button id="btn-export">⬇️ Exportar dados (.json)</button>
+    <button class="primary" id="btn-save-html">💾 Salvar cópia do app (.html)</button>
+    <button class="ghost icon-btn" id="btn-logout" title="Sair da conta">🚪 Sair</button>
+  </div>
+</header>
+
+<div id="auth-screen">
+  <div class="auth-card">
+
+    <div class="auth-form" id="auth-form-signin">
+      <h2 id="auth-title">Entrar</h2>
+      <div class="sub">Faça login pra acessar e salvar os débitos na nuvem.</div>
+      <div class="auth-field">
+        <label>E-mail</label>
+        <input type="email" id="auth-email" autocomplete="username">
+      </div>
+      <div class="auth-field">
+        <label>Senha</label>
+        <input type="password" id="auth-password" autocomplete="current-password">
+      </div>
+      <div class="auth-actions">
+        <button class="ghost" id="btn-auth-signup">Criar conta</button>
+        <button class="primary" id="btn-auth-signin">Entrar</button>
+      </div>
+      <div class="auth-msg" id="auth-msg"></div>
+      <div class="auth-links">
+        <a id="link-forgot-password">Esqueci minha senha</a>
+        <a id="link-skip-auth">Continuar sem login (modo local, não salva na nuvem)</a>
+      </div>
+    </div>
+
+    <div class="auth-form hidden" id="auth-form-forgot">
+      <h2>Redefinir senha</h2>
+      <div class="sub">Informe seu e-mail. Vamos enviar um link para você criar uma senha nova — seus débitos salvos não são alterados.</div>
+      <div class="auth-field">
+        <label>E-mail</label>
+        <input type="email" id="forgot-email" autocomplete="username">
+      </div>
+      <div class="auth-actions">
+        <button class="primary" id="btn-forgot-send" style="flex:1;">Enviar link de redefinição</button>
+      </div>
+      <div class="auth-msg" id="forgot-msg"></div>
+      <div class="auth-links">
+        <a id="link-back-to-signin">Voltar para o login</a>
+      </div>
+    </div>
+
+    <div class="auth-form hidden" id="auth-form-recovery">
+      <h2>Criar nova senha</h2>
+      <div class="sub">Você clicou no link de redefinição. Escolha uma nova senha para sua conta — seus débitos salvos continuam intactos.</div>
+      <div class="auth-field">
+        <label>Nova senha</label>
+        <input type="password" id="recovery-password" autocomplete="new-password">
+      </div>
+      <div class="auth-field">
+        <label>Confirmar nova senha</label>
+        <input type="password" id="recovery-password-confirm" autocomplete="new-password">
+      </div>
+      <div class="auth-actions">
+        <button class="primary" id="btn-recovery-save" style="flex:1;">Salvar nova senha</button>
+      </div>
+      <div class="auth-msg" id="recovery-msg"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="history-modal">
+  <div class="modal-box">
+    <h2>Histórico de versões</h2>
+    <div class="sub">Cada vez que os dados são salvos, uma cópia fica guardada aqui. Você pode restaurar qualquer uma.</div>
+    <div id="history-list"></div>
+    <div class="modal-close"><button class="ghost" id="btn-history-close">Fechar</button></div>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="pdf-modal">
+  <div class="modal-box">
+    <h2>Baixar PDF</h2>
+    <div class="sub">Escolha quais contas entram no relatório. Selecionando mais de uma, dá pra unificar tudo em um único PDF ou baixar um PDF separado pra cada uma.</div>
+
+    <div class="pdf-scope">
+      <label><input type="radio" name="pdf-quinzena-scope" value="atual" checked> Só esta quinzena</label>
+      <label><input type="radio" name="pdf-quinzena-scope" value="todas"> Todas as quinzenas (acumulado)</label>
+    </div>
+
+    <div class="pdf-select-all">
+      <span style="font-size:11px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:.05em; font-weight:700;">Contas</span>
+      <button type="button" class="btn-mini" id="btn-pdf-toggle-all">Marcar/desmarcar todas</button>
+    </div>
+    <div class="pdf-people-list" id="pdf-people-list"></div>
+
+    <div class="pdf-scope">
+      <label><input type="radio" name="pdf-unify" value="unificado" checked> Unificar em um único PDF</label>
+      <label><input type="radio" name="pdf-unify" value="separado"> Um PDF pra cada conta</label>
+    </div>
+
+    <div class="modal-close">
+      <button class="ghost" id="btn-pdf-close">Cancelar</button>
+      <button class="primary" id="btn-pdf-gerar">Baixar PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="kpi-filter-modal">
+  <div class="modal-box">
+    <h2>Filtrar clientes nos cards</h2>
+    <div class="sub">Escolha quais contas entram no cálculo de "Saldo total", "Em aberto", "Pago" e "Camisetas no período". Não afeta os outros dados do painel, só esses cards.</div>
+
+    <div class="pdf-select-all">
+      <span style="font-size:11px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:.05em; font-weight:700;">Contas</span>
+      <button type="button" class="btn-mini" id="btn-kpi-filter-toggle-all">Marcar/desmarcar todas</button>
+    </div>
+    <div class="pdf-people-list" id="kpi-filter-list"></div>
+
+    <div class="modal-close">
+      <button class="ghost" id="btn-kpi-filter-close">Cancelar</button>
+      <button class="primary" id="btn-kpi-filter-apply">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<main id="main-app">
+  <div class="quinzena-bar">
+    <div class="quinzena-tabs" id="quinzena-tabs"></div>
+    <button class="ghost" id="btn-open-pdf">📄 Baixar PDF</button>
+    <button class="ghost" id="btn-limpar-quinzena" title="Zera os lançamentos só desta quinzena">🧹 Limpar quinzena</button>
+    <button class="primary" id="btn-nova-quinzena">+ Próxima quinzena</button>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+    <span style="font-size:11.5px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:.04em; font-weight:700;">Exibindo nos cards:</span>
+    <button class="ghost" id="btn-kpi-filter" style="padding:6px 12px; font-size:12px;">👥 Todos os clientes</button>
+  </div>
+
+  <div class="kpi-row" id="kpi-row"></div>
+
+  <div class="card">
+    <h2 id="q-title"></h2>
+    <div class="sub" id="q-sub"></div>
+
+    <div class="person-tabs" id="person-tabs"></div>
+
+    <div class="price-row" id="price-row"></div>
+
+    <div id="person-table-wrap"></div>
+  </div>
+
+  <div class="card">
+    <h2>Resumo da quinzena</h2>
+    <div class="sub">Totais por pessoa nesta quinzena.</div>
+    <div class="table-scroll"><table class="resumo-table" id="resumo-quinzena"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Resumo geral (acumulado)</h2>
+    <div class="sub">Soma do saldo total de cada pessoa em todas as quinzenas cadastradas.</div>
+    <div class="table-scroll"><table class="resumo-table" id="resumo-geral"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Evolução por quinzena</h2>
+    <div class="sub" id="evolucao-sub">Camisetas vendidas x devolvidas e saldo total, quinzena a quinzena, do início até hoje.</div>
+    <div style="position:relative; height:280px;">
+      <canvas id="evolucao-chart"></canvas>
+    </div>
+  </div>
+
+  <div class="foot-actions"></div>
+  <p class="hint">Os dados ficam salvos na nuvem com a sua conta. Use "📄 Baixar PDF" pra tirar um relatório de vendas, devoluções e débito das contas que você escolher — dá pra unificar várias em um único PDF ou baixar um pra cada. Use "🧹 Limpar quinzena" pra zerar os lançamentos só da quinzena aberta no momento. Use "Salvar cópia do app" sempre que quiser guardar um backup local — isso baixa um novo arquivo .html já com os dados atuais dentro.</p>
+</main>
+
+<script id="app-data" type="application/json">SEED_PLACEHOLDER<\/script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"><\/script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"><\/script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Pessoas: todas trabalham com camiseta preta e branca ----------
+  var PEOPLE = [
+    {id:'neide',      name:'NEIDE',      type:'duplo', priceA:40, labelA:'Preta', priceB:39, labelB:'Branca', defaultStatus:'NÃO PAGO'},
+    {id:'wesley',     name:'WESLEY',     type:'duplo', priceA:40, labelA:'Preta', priceB:39, labelB:'Branca', defaultStatus:'NÃO PAGO'},
+    {id:'francisco',  name:'FRANCISCO',  type:'duplo', priceA:40, labelA:'Preta', priceB:39, labelB:'Branca', defaultStatus:'NÃO PAGO'},
+    {id:'graziely',   name:'GRAZIELY',   type:'duplo', priceA:40, labelA:'Preta', priceB:39, labelB:'Branca', defaultStatus:'NÃO PAGO'},
+    {id:'pablo',      name:'PABLO',      type:'duplo', priceA:40, labelA:'Preta', priceB:39, labelB:'Branca', defaultStatus:'NÃO PAGO'}
+  ];
+
+  // Filtro de quem entra no cálculo dos cards do topo (Saldo total, Em aberto, Pago, Camisetas
+  // no período). Não é salvo — sempre volta a mostrar todos quando a página é recarregada.
+  var kpiFilterIds = PEOPLE.map(function(p){ return p.id; });
+
+  var MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  function pad(n){ return n<10 ? '0'+n : ''+n; }
+  function toISO(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function fromISO(s){ var p=s.split('-').map(Number); return new Date(p[0], p[1]-1, p[2]); }
+  function fmtDate(iso){ var d=fromISO(iso); return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear(); }
+  var DIAS_SEMANA = ['dom','seg','ter','qua','qui','sex','sáb'];
+  function weekdayAbbr(iso){ return DIAS_SEMANA[fromISO(iso).getDay()]; }
+  function isWeekend(iso){ var d = fromISO(iso).getDay(); return d===0 || d===6; }
+  function addDays(iso, days){ var d=fromISO(iso); d.setDate(d.getDate()+days); return toISO(d); }
+  function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+
+  function emptyPersonDay(p){
+    if(p.type==='duplo') return {qc:0, qb:0, devc:0, devb:0};
+    return {q:0, dev:0};
+  }
+
+  function defaultPrices(){
+    var prices = {};
+    PEOPLE.forEach(function(p){
+      if(p.type==='duplo') prices[p.id] = {a:p.priceA, b:p.priceB};
+      else prices[p.id] = {v:p.price};
+    });
+    return prices;
+  }
+
+  // Quinzenas seguem o calendário: dia 1 ao 15, e dia 16 ao último dia do mês.
+  // O prazo de pagamento é sempre no dia 1 (se a quinzena foi a 1ª) ou dia 15 (se foi a 2ª) do mês seguinte.
+  function nextQuinzenaMeta(prevEndISO){
+    var prevEnd = fromISO(prevEndISO);
+    var start = new Date(prevEnd.getFullYear(), prevEnd.getMonth(), prevEnd.getDate()+1);
+    return quinzenaMetaFromStart(start);
+  }
+
+  // Quinzena do calendário que contém a data informada (usada pra começar zerado a partir de hoje).
+  function currentQuinzenaMeta(refDate){
+    var d = refDate || new Date();
+    var start = d.getDate() <= 15
+      ? new Date(d.getFullYear(), d.getMonth(), 1)
+      : new Date(d.getFullYear(), d.getMonth(), 16);
+    return quinzenaMetaFromStart(start);
+  }
+
+  function quinzenaMetaFromStart(start){
+    var y = start.getFullYear(), m = start.getMonth();
+    var isFirstHalf = start.getDate() === 1;
+    var end, due, ordinal;
+    if(isFirstHalf){
+      end = new Date(y, m, 15);
+      due = new Date(y, m+1, 1);
+      ordinal = '1ª';
+    } else {
+      end = new Date(y, m, daysInMonth(y,m));
+      due = new Date(y, m+1, 15);
+      ordinal = '2ª';
+    }
+    var label = ordinal+' quinzena de '+MESES[m]+'/'+String(y).slice(2);
+    return {
+      startDate: toISO(start),
+      endDate: toISO(end),
+      dueDate: toISO(due),
+      label: label
+    };
+  }
+
+  function buildQuinzenaDays(startISO, endISO){
+    var days = [];
+    var cur = startISO;
+    while(cur <= endISO){
+      var entries = {};
+      PEOPLE.forEach(function(p){ entries[p.id] = emptyPersonDay(p); });
+      days.push({date: cur, entries: entries});
+      cur = addDays(cur, 1);
+    }
+    return days;
+  }
+
+  function buildEmptyQuinzenaFromMeta(meta){
+    var status = {};
+    PEOPLE.forEach(function(p){ status[p.id] = p.defaultStatus; });
+    return {
+      id: meta.startDate+'_'+meta.endDate,
+      label: meta.label,
+      startDate: meta.startDate,
+      endDate: meta.endDate,
+      dueDate: meta.dueDate,
+      prices: defaultPrices(),
+      status: status,
+      days: buildQuinzenaDays(meta.startDate, meta.endDate)
+    };
+  }
+
+  // Gera o histórico completo de quinzenas zeradas, começando na 1ª quinzena de Julho do ano
+  // corrente até a quinzena que contém hoje — assim já vem tudo pronto pra registrar pagamentos
+  // atrasados de meses anteriores.
+  function buildInitialQuinzenas(){
+    var year = new Date().getFullYear();
+    var cursorMeta = quinzenaMetaFromStart(new Date(year, 6, 1)); // 6 = Julho
+    var currentMeta = currentQuinzenaMeta(new Date());
+    var quinzenas = [];
+    var guard = 0;
+    while(guard < 60){
+      quinzenas.push(buildEmptyQuinzenaFromMeta(cursorMeta));
+      if(cursorMeta.startDate === currentMeta.startDate) break;
+      cursorMeta = nextQuinzenaMeta(cursorMeta.endDate);
+      guard++;
+    }
+    return quinzenas;
+  }
+
+  // ---------- Estado ----------
+  var state = null;
+
+  function loadInitialState(){
+    var seedEl = document.getElementById('app-data');
+    var raw = (seedEl.textContent || '').trim();
+    if(raw && raw !== 'SEED_PLACEHOLDER'){
+      try{
+        var parsed = JSON.parse(raw);
+        if(parsed && parsed.quinzenas && parsed.quinzenas.length) return parsed;
+      }catch(e){ console.warn('Falha ao ler dados salvos, começando zerado.', e); }
+    }
+    return { quinzenas: buildInitialQuinzenas(), selectedQuinzenaId: null, selectedPersonId: PEOPLE[0].id };
+  }
+
+  state = loadInitialState();
+  if(!state.selectedQuinzenaId) state.selectedQuinzenaId = state.quinzenas[state.quinzenas.length-1].id;
+  if(!state.selectedPersonId) state.selectedPersonId = PEOPLE[0].id;
+  fixQuinzenas();
+
+  function getPerson(id){ for(var i=0;i<PEOPLE.length;i++) if(PEOPLE[i].id===id) return PEOPLE[i]; }
+  function getQuinzena(id){ for(var i=0;i<state.quinzenas.length;i++) if(state.quinzenas[i].id===id) return state.quinzenas[i]; }
+  function currentQuinzena(){ return getQuinzena(state.selectedQuinzenaId); }
+
+  // Corrige quinzenas salvas fora do padrão de calendário (ex: de uma versão antiga do app,
+  // que contava "15 dias corridos" a partir de qualquer data). Reagrupa cada lançamento no
+  // período de calendário correto (dia 1-15 ou dia 16-fim do mês) sem perder nenhum dado.
+  function normalizeQuinzenasToCalendar(){
+    if(!state.quinzenas || !state.quinzenas.length) return false;
+
+    var alreadyOk = state.quinzenas.every(function(q){
+      var meta = currentQuinzenaMeta(fromISO(q.startDate));
+      return meta.startDate === q.startDate && meta.endDate === q.endDate;
+    });
+    if(alreadyOk) return false;
+
+    var grouped = {}; // id -> { meta, daysByDate, prices, status }
+    var order = [];
+    state.quinzenas.forEach(function(q){
+      q.days.forEach(function(day){
+        var meta = currentQuinzenaMeta(fromISO(day.date));
+        var id = meta.startDate+'_'+meta.endDate;
+        if(!grouped[id]){
+          grouped[id] = { meta: meta, daysByDate: {}, prices: JSON.parse(JSON.stringify(q.prices)), status: JSON.parse(JSON.stringify(q.status)) };
+          order.push(id);
+        }
+        grouped[id].daysByDate[day.date] = day.entries;
+      });
+    });
+
+    if(!order.length) return false;
+    order.sort();
+
+    var rebuilt = order.map(function(id){
+      var g = grouped[id];
+      var days = buildQuinzenaDays(g.meta.startDate, g.meta.endDate).map(function(day){
+        return { date: day.date, entries: g.daysByDate[day.date] || day.entries };
+      });
+      return {
+        id: id, label: g.meta.label, startDate: g.meta.startDate, endDate: g.meta.endDate, dueDate: g.meta.dueDate,
+        prices: g.prices, status: g.status, days: days
+      };
+    });
+
+    var oldSelectedId = state.selectedQuinzenaId;
+    state.quinzenas = rebuilt;
+    state.selectedQuinzenaId = getQuinzena(oldSelectedId) ? oldSelectedId : rebuilt[rebuilt.length-1].id;
+    return true;
+  }
+
+  // Preenche com quinzenas zeradas qualquer lacuna entre a 1ª quinzena de Julho e a mais antiga
+  // quinzena já existente — pra contas que já vinham sendo usadas antes desse ajuste, sem perder
+  // nada do que já foi lançado.
+  function backfillQuinzenasFromJuly(){
+    if(!state.quinzenas || !state.quinzenas.length) return false;
+
+    var earliest = state.quinzenas.reduce(function(min, q){
+      return (q.startDate < min.startDate) ? q : min;
+    }, state.quinzenas[0]);
+
+    var year = fromISO(earliest.startDate).getFullYear();
+    var cursorMeta = quinzenaMetaFromStart(new Date(year, 6, 1)); // 6 = Julho
+    if(cursorMeta.startDate >= earliest.startDate) return false;
+
+    var toPrepend = [];
+    var guard = 0;
+    while(cursorMeta.startDate < earliest.startDate && guard < 60){
+      toPrepend.push(buildEmptyQuinzenaFromMeta(cursorMeta));
+      cursorMeta = nextQuinzenaMeta(cursorMeta.endDate);
+      guard++;
+    }
+
+    if(!toPrepend.length) return false;
+    state.quinzenas = toPrepend.concat(state.quinzenas);
+    return true;
+  }
+
+  // Roda as duas correções (calendário + lacunas desde julho) de uma vez.
+  function fixQuinzenas(){
+    var a = normalizeQuinzenasToCalendar();
+    var b = backfillQuinzenasFromJuly();
+    return a || b;
+  }
+
+  // ---------- Fórmulas ----------
+  function calcSimples(entry, price){
+    var q = Number(entry.q)||0, dev = Number(entry.dev)||0;
+    var saldoDevedor = q*price;
+    var saldoTotal = (q-dev)*price;
+    return {saldoDevedor:saldoDevedor, saldoTotal:saldoTotal};
+  }
+  function calcDuplo(entry, priceA, priceB){
+    var qc=Number(entry.qc)||0, qb=Number(entry.qb)||0, devc=Number(entry.devc)||0, devb=Number(entry.devb)||0;
+    var saldoA = qc*priceA, saldoB = qb*priceB;
+    var saldoTotal = saldoA + saldoB - (devc*priceA) - (devb*priceB);
+    return {saldoA:saldoA, saldoB:saldoB, saldoTotal:saldoTotal};
+  }
+
+  function quinzenaTotals(q, personId){
+    var p = getPerson(personId);
+    var price = q.prices[personId];
+    if(p.type==='simples'){
+      var sq=0, sdev=0, ssd=0, sst=0;
+      q.days.forEach(function(day){
+        var e = day.entries[personId];
+        var c = calcSimples(e, price.v);
+        sq += Number(e.q)||0; sdev += Number(e.dev)||0; ssd += c.saldoDevedor; sst += c.saldoTotal;
+      });
+      return {q:sq, dev:sdev, saldoDevedor:ssd, saldoTotal:sst};
+    } else {
+      var sqc=0, sqb=0, sdevc=0, sdevb=0, ssa=0, ssb=0, sst2=0;
+      q.days.forEach(function(day){
+        var e = day.entries[personId];
+        var c = calcDuplo(e, price.a, price.b);
+        sqc += Number(e.qc)||0; sqb += Number(e.qb)||0; sdevc += Number(e.devc)||0; sdevb += Number(e.devb)||0;
+        ssa += c.saldoA; ssb += c.saldoB; sst2 += c.saldoTotal;
+      });
+      return {qc:sqc, qb:sqb, devc:sdevc, devb:sdevb, saldoA:ssa, saldoB:ssb, saldoTotal:sst2};
+    }
+  }
+
+  function money(v){
+    return 'R$ ' + (Math.round(v*100)/100).toFixed(2).replace('.', ',');
+  }
+
+  // ---------- Linhas de detalhe por dia, para o PDF de uma única quinzena ----------
+  function buildPersonDailyRows(person, q){
+    var price = q.prices[person.id];
+    var headers, moneyCols, rows = [], footRow, weekendRowIdx = [];
+    if(person.type==='simples'){
+      headers = ['Data','Quantidade','Devolução','Saldo total'];
+      moneyCols = [3];
+      var totQ=0, totDev=0, totSaldo=0;
+      q.days.forEach(function(day){
+        var e = day.entries[person.id];
+        var qtd = Number(e.q)||0, dev = Number(e.dev)||0;
+        var c = calcSimples(e, price.v);
+        totQ += qtd; totDev += dev; totSaldo += c.saldoTotal;
+        if(qtd===0 && dev===0) return;
+        if(isWeekend(day.date)) weekendRowIdx.push(rows.length);
+        rows.push([fmtDate(day.date)+' ('+weekdayAbbr(day.date)+')', qtd, dev, money(c.saldoTotal)]);
+      });
+      footRow = ['TOTAL', totQ, totDev, money(totSaldo)];
+    } else {
+      headers = ['Data','Qtd. '+person.labelA,'Qtd. '+person.labelB,'Dev. '+person.labelA,'Dev. '+person.labelB,'Saldo total'];
+      moneyCols = [5];
+      var totQc=0, totDevc=0, totQb=0, totDevb=0, totSaldo2=0;
+      q.days.forEach(function(day){
+        var e = day.entries[person.id];
+        var qc=Number(e.qc)||0, qb=Number(e.qb)||0, devc=Number(e.devc)||0, devb=Number(e.devb)||0;
+        var c = calcDuplo(e, price.a, price.b);
+        totQc += qc; totDevc += devc; totQb += qb; totDevb += devb; totSaldo2 += c.saldoTotal;
+        if(qc===0 && qb===0 && devc===0 && devb===0) return;
+        if(isWeekend(day.date)) weekendRowIdx.push(rows.length);
+        rows.push([fmtDate(day.date)+' ('+weekdayAbbr(day.date)+')', qc, qb, devc, devb, money(c.saldoTotal)]);
+      });
+      footRow = ['TOTAL', totQc, totQb, totDevc, totDevb, money(totSaldo2)];
+    }
+    return {headers:headers, rows:rows, moneyCols:moneyCols, footRow:footRow, weekendRowIdx:weekendRowIdx};
+  }
+
+  // ---------- Linhas resumidas por quinzena, para o PDF acumulado (todas as quinzenas) ----------
+  function buildPersonQuinzenaSummaryRows(person){
+    var headers, moneyCols, rows = [], footRow;
+    var acumulado = 0;
+    if(person.type==='simples'){
+      headers = ['Quinzena','Período','Quantidade','Devolução','Status','Saldo'];
+      moneyCols = [5];
+      var totQ=0, totDev=0;
+      state.quinzenas.forEach(function(q){
+        var t = quinzenaTotals(q, person.id);
+        acumulado += t.saldoTotal; totQ += t.q; totDev += t.dev;
+        rows.push([q.label, fmtDate(q.startDate)+' a '+fmtDate(q.endDate), t.q, t.dev, q.status[person.id], money(t.saldoTotal)]);
+      });
+      footRow = ['TOTAL', '', totQ, totDev, '', money(acumulado)];
+    } else {
+      headers = ['Quinzena','Período','Qtd. '+person.labelA,'Qtd. '+person.labelB,'Devolução','Status','Saldo'];
+      moneyCols = [6];
+      var totQc=0, totQb=0, totDevAll=0;
+      state.quinzenas.forEach(function(q){
+        var t = quinzenaTotals(q, person.id);
+        acumulado += t.saldoTotal; totQc += t.qc; totQb += t.qb; totDevAll += (t.devc+t.devb);
+        rows.push([q.label, fmtDate(q.startDate)+' a '+fmtDate(q.endDate), t.qc, t.qb, (t.devc+t.devb), q.status[person.id], money(t.saldoTotal)]);
+      });
+      footRow = ['TOTAL', '', totQc, totQb, totDevAll, '', money(acumulado)];
+    }
+    return {headers:headers, rows:rows, moneyCols:moneyCols, acumulado:acumulado, footRow:footRow};
+  }
+
+  // ---------- Resumo narrativo (ex: "20 camisetas pretas vendidas... 1 devolvida...") ----------
+  function pluralize(n, singular, plural){ return n===1 ? singular : (plural||singular+'s'); }
+
+  function buildPersonNarrative(person, scope){
+    var vendasLines = [];
+    var devolucoesLines = [];
+    var total = 0;
+
+    if(person.type==='duplo'){
+      var qc=0, qb=0, devc=0, devb=0, valA=0, valB=0, devValA=0, devValB=0;
+      if(scope==='atual'){
+        var q = currentQuinzena();
+        var price = q.prices[person.id];
+        var t = quinzenaTotals(q, person.id);
+        qc=t.qc; qb=t.qb; devc=t.devc; devb=t.devb;
+        valA = qc*price.a; valB = qb*price.b;
+        devValA = devc*price.a; devValB = devb*price.b;
+        total = t.saldoTotal;
+      } else {
+        state.quinzenas.forEach(function(qq){
+          var pr = qq.prices[person.id];
+          var tt = quinzenaTotals(qq, person.id);
+          qc += tt.qc; qb += tt.qb; devc += tt.devc; devb += tt.devb;
+          valA += tt.qc*pr.a; valB += tt.qb*pr.b;
+          devValA += tt.devc*pr.a; devValB += tt.devb*pr.b;
+          total += tt.saldoTotal;
+        });
+      }
+      vendasLines.push(qc+' '+pluralize(qc,'camiseta','camisetas')+' '+person.labelA.toLowerCase()+pluralize(qc,'','s')+' '+pluralize(qc,'vendida','vendidas')+' — '+money(valA));
+      vendasLines.push(qb+' '+pluralize(qb,'camiseta','camisetas')+' '+person.labelB.toLowerCase()+pluralize(qb,'','s')+' '+pluralize(qb,'vendida','vendidas')+' — '+money(valB));
+      if(devc>0) devolucoesLines.push(devc+' '+pluralize(devc,'camiseta','camisetas')+' '+person.labelA.toLowerCase()+pluralize(devc,'','s')+' '+pluralize(devc,'devolvida','devolvidas')+' — -'+money(devValA));
+      if(devb>0) devolucoesLines.push(devb+' '+pluralize(devb,'camiseta','camisetas')+' '+person.labelB.toLowerCase()+pluralize(devb,'','s')+' '+pluralize(devb,'devolvida','devolvidas')+' — -'+money(devValB));
+      if(!devolucoesLines.length) devolucoesLines.push('Nenhuma devolução no período.');
+    } else {
+      var qtd=0, dev=0, val=0, devVal=0;
+      if(scope==='atual'){
+        var q2 = currentQuinzena();
+        var price2 = q2.prices[person.id];
+        var t2 = quinzenaTotals(q2, person.id);
+        qtd=t2.q; dev=t2.dev; val=qtd*price2.v; devVal=dev*price2.v;
+        total = t2.saldoTotal;
+      } else {
+        state.quinzenas.forEach(function(qq){
+          var pr2 = qq.prices[person.id];
+          var tt2 = quinzenaTotals(qq, person.id);
+          qtd += tt2.q; dev += tt2.dev;
+          val += tt2.q*pr2.v; devVal += tt2.dev*pr2.v;
+          total += tt2.saldoTotal;
+        });
+      }
+      vendasLines.push(qtd+' '+pluralize(qtd,'unidade','unidades')+' '+pluralize(qtd,'vendida','vendidas')+' — '+money(val));
+      if(dev>0) devolucoesLines.push(dev+' '+pluralize(dev,'unidade','unidades')+' '+pluralize(dev,'devolvida','devolvidas')+' — -'+money(devVal));
+      else devolucoesLines.push('Nenhuma devolução no período.');
+    }
+
+    return {vendasLines: vendasLines, devolucoesLines: devolucoesLines, total: total};
+  }
+
+
+  function addNovaQuinzena(){
+    var last = state.quinzenas[state.quinzenas.length-1];
+    var meta = nextQuinzenaMeta(last.endDate);
+    var novaId = meta.startDate+'_'+meta.endDate;
+    if(getQuinzena(novaId)){ alert('Essa quinzena já existe.'); return; }
+    var status = {};
+    PEOPLE.forEach(function(p){ status[p.id] = p.defaultStatus; });
+    var nova = {
+      id: novaId,
+      label: meta.label,
+      startDate: meta.startDate,
+      endDate: meta.endDate,
+      dueDate: meta.dueDate,
+      prices: JSON.parse(JSON.stringify(last.prices)),
+      status: status,
+      days: buildQuinzenaDays(meta.startDate, meta.endDate)
+    };
+    state.quinzenas.push(nova);
+    state.selectedQuinzenaId = nova.id;
+    render();
+    scheduleSave();
+  }
+
+  function removeQuinzena(id){
+    if(state.quinzenas.length===1){ alert('Precisa restar ao menos uma quinzena.'); return; }
+    if(!confirm('Remover esta quinzena? Essa ação não pode ser desfeita.')) return;
+    state.quinzenas = state.quinzenas.filter(function(q){ return q.id!==id; });
+    state.selectedQuinzenaId = state.quinzenas[state.quinzenas.length-1].id;
+    render();
+    scheduleSave();
+  }
+
+  // Zera todos os lançamentos (quantidades, devoluções e status) só da quinzena selecionada,
+  // sem remover a quinzena nem afetar as outras.
+  function limparQuinzenaAtual(){
+    var q = currentQuinzena();
+    if(!confirm('Limpar todos os lançamentos de "'+q.label+'"? Isso zera quantidades, devoluções e status dessa quinzena — as outras quinzenas não são afetadas. Essa ação não pode ser desfeita.')) return;
+    q.days.forEach(function(day){
+      PEOPLE.forEach(function(p){ day.entries[p.id] = emptyPersonDay(p); });
+    });
+    PEOPLE.forEach(function(p){ q.status[p.id] = p.defaultStatus; });
+    render();
+    scheduleSave();
+  }
+
+  // ---------- Render ----------
+  function render(){
+    renderQuinzenaTabs();
+    var q = currentQuinzena();
+    document.getElementById('q-title').textContent = q.label;
+    document.getElementById('q-sub').textContent =
+      'Período: '+fmtDate(q.startDate)+' a '+fmtDate(q.endDate)+'  ·  Saldo a pagar até '+fmtDate(q.dueDate);
+    renderKpis();
+    renderPersonTabs();
+    renderPriceRow();
+    renderPersonTable();
+    renderResumoQuinzena();
+    renderResumoGeral();
+    renderEvolutionChart();
+  }
+
+  function renderKpis(){
+    var q = currentQuinzena();
+    var filteredPeople = PEOPLE.filter(function(p){ return kpiFilterIds.indexOf(p.id) !== -1; });
+    var totalSaldo=0, totalAberto=0, totalPago=0, pessoasAberto=0, pessoasPagas=0, totalItens=0;
+    filteredPeople.forEach(function(p){
+      var t = quinzenaTotals(q, p.id);
+      var qtd = p.type==='simples' ? t.q : (t.qc+t.qb);
+      totalSaldo += t.saldoTotal;
+      totalItens += qtd;
+      if(q.status[p.id]==='PAGO'){ totalPago += t.saldoTotal; pessoasPagas++; }
+      else { totalAberto += t.saldoTotal; pessoasAberto++; }
+    });
+
+    var diffHtml = '';
+    var idx = state.quinzenas.findIndex(function(qq){ return qq.id===q.id; });
+    if(idx > 0){
+      var prev = state.quinzenas[idx-1];
+      var prevTotal = 0;
+      filteredPeople.forEach(function(p){ prevTotal += quinzenaTotals(prev, p.id).saldoTotal; });
+      var diff = totalSaldo - prevTotal;
+      if(Math.abs(diff) >= 0.005){
+        var cls = diff > 0 ? 'diff-up' : 'diff-down';
+        var arrow = diff > 0 ? '▲' : '▼';
+        diffHtml = '<div class="kpi-sub '+cls+'">'+arrow+' <span class="money">'+money(Math.abs(diff))+'</span> '+(diff>0?'a mais':'a menos')+' que a quinzena anterior</div>';
+      }
+    }
+
+    var wrap = document.getElementById('kpi-row');
+    wrap.innerHTML =
+      '<div class="kpi-card"><div class="kpi-label">Saldo total da quinzena</div>'+
+        '<div class="kpi-value"><span class="money">'+money(totalSaldo)+'</span></div>'+diffHtml+'</div>'+
+      '<div class="kpi-card"><div class="kpi-label">Em aberto</div>'+
+        '<div class="kpi-value neg"><span class="money">'+money(totalAberto)+'</span></div>'+
+        '<div class="kpi-sub">'+pessoasAberto+' de '+filteredPeople.length+' pessoas com saldo pendente</div></div>'+
+      '<div class="kpi-card"><div class="kpi-label">Pago</div>'+
+        '<div class="kpi-value pos"><span class="money">'+money(totalPago)+'</span></div>'+
+        '<div class="kpi-sub">'+pessoasPagas+' de '+filteredPeople.length+' pessoas quitadas</div></div>'+
+      '<div class="kpi-card"><div class="kpi-label">Camisetas no período</div>'+
+        '<div class="kpi-value">'+totalItens+'</div>'+
+        '<div class="kpi-sub">unidades lançadas nesta quinzena</div></div>';
+  }
+
+  function renderQuinzenaTabs(){
+    var wrap = document.getElementById('quinzena-tabs');
+    wrap.innerHTML = '';
+    state.quinzenas.forEach(function(q){
+      var btn = document.createElement('div');
+      btn.className = 'qtab' + (q.id===state.selectedQuinzenaId ? ' active' : '');
+      btn.textContent = q.label;
+      btn.title = 'Remover (clique com o botão direito)';
+      btn.addEventListener('click', function(){ state.selectedQuinzenaId = q.id; render(); });
+      btn.addEventListener('contextmenu', function(ev){ ev.preventDefault(); removeQuinzena(q.id); });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function renderPersonTabs(){
+    var wrap = document.getElementById('person-tabs');
+    wrap.innerHTML = '';
+    PEOPLE.forEach(function(p){
+      var btn = document.createElement('div');
+      btn.className = 'ptab' + (p.id===state.selectedPersonId ? ' active' : '');
+      btn.textContent = p.name;
+      btn.addEventListener('click', function(){ state.selectedPersonId = p.id; render(); });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function renderPriceRow(){
+    var q = currentQuinzena();
+    var p = getPerson(state.selectedPersonId);
+    var wrap = document.getElementById('price-row');
+    wrap.innerHTML = '';
+
+    if(p.type==='simples'){
+      var lbl = document.createElement('label');
+      lbl.innerHTML = 'Preço por unidade&nbsp;';
+      var inp = document.createElement('input');
+      inp.type='number'; inp.step='0.01'; inp.value = q.prices[p.id].v;
+      inp.addEventListener('input', function(){ q.prices[p.id].v = Number(inp.value)||0; renderPersonTable(); renderResumoQuinzena(); renderResumoGeral(); renderKpis(); scheduleSave(); });
+      lbl.appendChild(inp);
+      wrap.appendChild(lbl);
+    } else {
+      var lblA = document.createElement('label');
+      lblA.innerHTML = 'Preço camiseta '+p.labelA+'&nbsp;';
+      var inpA = document.createElement('input');
+      inpA.type='number'; inpA.step='0.01'; inpA.value = q.prices[p.id].a;
+      inpA.addEventListener('input', function(){ q.prices[p.id].a = Number(inpA.value)||0; renderPersonTable(); renderResumoQuinzena(); renderResumoGeral(); renderKpis(); scheduleSave(); });
+      lblA.appendChild(inpA);
+      wrap.appendChild(lblA);
+
+      var lblB = document.createElement('label');
+      lblB.innerHTML = 'Preço camiseta '+p.labelB+'&nbsp;';
+      var inpB = document.createElement('input');
+      inpB.type='number'; inpB.step='0.01'; inpB.value = q.prices[p.id].b;
+      inpB.addEventListener('input', function(){ q.prices[p.id].b = Number(inpB.value)||0; renderPersonTable(); renderResumoQuinzena(); renderResumoGeral(); renderKpis(); scheduleSave(); });
+      lblB.appendChild(inpB);
+      wrap.appendChild(lblB);
+    }
+
+    var statusLbl = document.createElement('label');
+    statusLbl.innerHTML = 'Status da quinzena&nbsp;';
+    var sel = document.createElement('select');
+    sel.className = 'status-select ' + (q.status[p.id]==='PAGO' ? 'pago' : 'nao');
+    ['NÃO PAGO','PAGO'].forEach(function(opt){
+      var o = document.createElement('option'); o.value=opt; o.textContent=opt;
+      if(q.status[p.id]===opt) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', function(){
+      q.status[p.id] = sel.value;
+      sel.className = 'status-select ' + (sel.value==='PAGO' ? 'pago' : 'nao');
+      renderResumoQuinzena();
+      renderKpis();
+      scheduleSave();
+    });
+    statusLbl.appendChild(sel);
+    wrap.appendChild(statusLbl);
+  }
+
+  function renderPersonTable(){
+    var q = currentQuinzena();
+    var p = getPerson(state.selectedPersonId);
+    var wrap = document.getElementById('person-table-wrap');
+    var table = document.createElement('table');
+
+    var thead = document.createElement('thead');
+    var trh = document.createElement('tr');
+    var headers = p.type==='simples'
+      ? ['Data','Quantidade','Saldo devedor','Devolução','Saldo total']
+      : ['Data','Qtd. '+p.labelA,'Saldo '+p.labelA,'Qtd. '+p.labelB,'Saldo '+p.labelB,'Dev. '+p.labelA,'Dev. '+p.labelB,'Saldo total'];
+    headers.forEach(function(h){ var th=document.createElement('th'); th.textContent=h; trh.appendChild(th); });
+    thead.appendChild(trh);
+    table.appendChild(thead);
+
+    var tbody = document.createElement('tbody');
+    var totals = p.type==='simples' ? {q:0,dev:0,saldoDevedor:0,saldoTotal:0} : {qc:0,qb:0,devc:0,devb:0,saldoA:0,saldoB:0,saldoTotal:0};
+
+    q.days.forEach(function(day){
+      var e = day.entries[p.id];
+      var tr = document.createElement('tr');
+      if(isWeekend(day.date)) tr.className = 'weekend-row';
+
+      var tdDate = document.createElement('td');
+      tdDate.textContent = fmtDate(day.date);
+      var dayTag = document.createElement('span');
+      dayTag.className = 'day-tag';
+      dayTag.textContent = weekdayAbbr(day.date);
+      tdDate.appendChild(dayTag);
+      tr.appendChild(tdDate);
+
+      if(p.type==='simples'){
+        var price = q.prices[p.id].v;
+        var c = calcSimples(e, price);
+        tr.appendChild(numInput(e, 'q'));
+        tr.appendChild(moneyCell(c.saldoDevedor));
+        tr.appendChild(numInput(e, 'dev'));
+        tr.appendChild(moneyCell(c.saldoTotal));
+        totals.q += Number(e.q)||0; totals.dev += Number(e.dev)||0;
+        totals.saldoDevedor += c.saldoDevedor; totals.saldoTotal += c.saldoTotal;
+      } else {
+        var pa = q.prices[p.id].a, pb = q.prices[p.id].b;
+        var c2 = calcDuplo(e, pa, pb);
+        tr.appendChild(numInput(e, 'qc'));
+        tr.appendChild(moneyCell(c2.saldoA));
+        tr.appendChild(numInput(e, 'qb'));
+        tr.appendChild(moneyCell(c2.saldoB));
+        tr.appendChild(numInput(e, 'devc'));
+        tr.appendChild(numInput(e, 'devb'));
+        tr.appendChild(moneyCell(c2.saldoTotal));
+        totals.qc += Number(e.qc)||0; totals.qb += Number(e.qb)||0;
+        totals.devc += Number(e.devc)||0; totals.devb += Number(e.devb)||0;
+        totals.saldoA += c2.saldoA; totals.saldoB += c2.saldoB; totals.saldoTotal += c2.saldoTotal;
+      }
+
+      function numInput(entryObj, field){
+        var td = document.createElement('td');
+        var inp = document.createElement('input');
+        inp.type = 'number'; inp.min='0'; inp.value = entryObj[field];
+        inp.addEventListener('input', function(){
+          entryObj[field] = Number(inp.value)||0;
+          renderPersonTable();
+          renderResumoQuinzena();
+          renderResumoGeral();
+          renderKpis();
+          scheduleSave();
+        });
+        td.appendChild(inp);
+        return td;
+      }
+      function moneyCell(v){ var td=document.createElement('td'); td.innerHTML = '<span class="money">'+money(v)+'</span>'; return td; }
+
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+
+    var tfoot = document.createElement('tfoot');
+    var trt = document.createElement('tr'); trt.className='total-row';
+    var tdLabel = document.createElement('td'); tdLabel.textContent='TOTAL'; trt.appendChild(tdLabel);
+    function totalCell(v, isMoney){
+      var td=document.createElement('td');
+      if(isMoney) td.innerHTML = '<span class="money">'+v+'</span>';
+      else td.textContent = v;
+      return td;
+    }
+    if(p.type==='simples'){
+      trt.appendChild(totalCell(totals.q, false));
+      trt.appendChild(totalCell(money(totals.saldoDevedor), true));
+      trt.appendChild(totalCell(totals.dev, false));
+      trt.appendChild(totalCell(money(totals.saldoTotal), true));
+    } else {
+      trt.appendChild(totalCell(totals.qc, false));
+      trt.appendChild(totalCell(money(totals.saldoA), true));
+      trt.appendChild(totalCell(totals.qb, false));
+      trt.appendChild(totalCell(money(totals.saldoB), true));
+      trt.appendChild(totalCell(totals.devc, false));
+      trt.appendChild(totalCell(totals.devb, false));
+      trt.appendChild(totalCell(money(totals.saldoTotal), true));
+    }
+    tfoot.appendChild(trt);
+    table.appendChild(tfoot);
+
+    wrap.innerHTML = '';
+    wrap.appendChild(table);
+  }
+
+  function renderResumoQuinzena(){
+    var q = currentQuinzena();
+    var table = document.getElementById('resumo-quinzena');
+    var rows = ['<tr><th>Pessoa</th><th>Quantidade</th><th>Devolução</th><th>Saldo total</th><th>Status</th></tr>'];
+    var grandTotal = 0;
+    PEOPLE.forEach(function(p){
+      var t = quinzenaTotals(q, p.id);
+      var qtd, dev, saldo;
+      if(p.type==='simples'){ qtd=t.q; dev=t.dev; saldo=t.saldoTotal; }
+      else { qtd=t.qc+t.qb; dev=t.devc+t.devb; saldo=t.saldoTotal; }
+      grandTotal += saldo;
+      var statusVal = q.status[p.id];
+      var tagClass = statusVal==='PAGO' ? 'pago' : 'nao';
+      rows.push('<tr><td>'+p.name+'</td><td>'+qtd+'</td><td>'+dev+'</td><td><span class="money">'+money(saldo)+'</span></td>'+
+                 '<td><span class="tag '+tagClass+'">'+statusVal+'</span></td></tr>');
+    });
+    rows.push('<tr class="total-row"><td>TOTAL</td><td></td><td></td><td><span class="money">'+money(grandTotal)+'</span></td><td></td></tr>');
+    table.innerHTML = rows.join('');
+  }
+
+  function renderResumoGeral(){
+    var table = document.getElementById('resumo-geral');
+    var rows = ['<tr><th>Pessoa</th>'+state.quinzenas.map(function(q){return '<th>'+q.label+'</th>';}).join('')+'<th>Acumulado</th></tr>'];
+    var grand = 0;
+    PEOPLE.forEach(function(p){
+      var acc = 0;
+      var cells = state.quinzenas.map(function(q){
+        var t = quinzenaTotals(q, p.id);
+        acc += t.saldoTotal;
+        return '<td><span class="money">'+money(t.saldoTotal)+'</span></td>';
+      }).join('');
+      grand += acc;
+      rows.push('<tr><td>'+p.name+'</td>'+cells+'<td><strong><span class="money">'+money(acc)+'</span></strong></td></tr>');
+    });
+    rows.push('<tr class="total-row"><td>TOTAL</td>'+state.quinzenas.map(function(){return '<td></td>';}).join('')+'<td><span class="money">'+money(grand)+'</span></td></tr>');
+    table.innerHTML = rows.join('');
+  }
+
+  // ---------- Gráfico: vendas x devoluções por quinzena, com saldo total ----------
+  var evolutionChartInstance = null;
+
+  function renderEvolutionChart(){
+    var canvas = document.getElementById('evolucao-chart');
+    if(!canvas || !window.Chart) return;
+
+    var filteredPeople = PEOPLE.filter(function(p){ return kpiFilterIds.indexOf(p.id) !== -1; });
+
+    var subEl = document.getElementById('evolucao-sub');
+    if(subEl){
+      var quemTexto = filteredPeople.length === PEOPLE.length
+        ? 'todos os clientes'
+        : (filteredPeople.length === 1 ? 'só '+filteredPeople[0].name : filteredPeople.length+' de '+PEOPLE.length+' clientes');
+      subEl.textContent = 'Camisetas vendidas x devolvidas e saldo total, quinzena a quinzena — mostrando '+quemTexto+'.';
+    }
+
+    var labels = state.quinzenas.map(function(q){ return q.label.replace(' quinzena de', 'ª q. de'); });
+
+
+    var vendidas = state.quinzenas.map(function(q){
+      var total = 0;
+      filteredPeople.forEach(function(p){
+        var t = quinzenaTotals(q, p.id);
+        total += (p.type==='simples') ? t.q : (t.qc + t.qb);
+      });
+      return total;
+    });
+
+    var devolvidas = state.quinzenas.map(function(q){
+      var total = 0;
+      filteredPeople.forEach(function(p){
+        var t = quinzenaTotals(q, p.id);
+        total += (p.type==='simples') ? t.dev : (t.devc + t.devb);
+      });
+      return total;
+    });
+
+    var saldos = state.quinzenas.map(function(q){
+      var total = 0;
+      filteredPeople.forEach(function(p){ total += quinzenaTotals(q, p.id).saldoTotal; });
+      return Math.round(total*100)/100;
+    });
+
+    if(evolutionChartInstance){
+      evolutionChartInstance.data.labels = labels;
+      evolutionChartInstance.data.datasets[0].data = vendidas;
+      evolutionChartInstance.data.datasets[1].data = devolvidas;
+      evolutionChartInstance.data.datasets[2].data = saldos;
+      evolutionChartInstance.update();
+      return;
+    }
+
+    var inkSoft = getComputedStyle(document.body).getPropertyValue('--ink-soft').trim() || '#9aa2b1';
+    var lineColor = 'rgba(255,255,255,.07)';
+
+    evolutionChartInstance = new Chart(canvas.getContext('2d'), {
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Vendidas',
+            data: vendidas,
+            backgroundColor: 'rgba(59,130,246,.65)',
+            borderColor: '#3b82f6',
+            borderWidth: 1,
+            borderRadius: 4,
+            yAxisID: 'y'
+          },
+          {
+            type: 'bar',
+            label: 'Devolvidas',
+            data: devolvidas,
+            backgroundColor: 'rgba(244,63,94,.55)',
+            borderColor: '#f43f5e',
+            borderWidth: 1,
+            borderRadius: 4,
+            yAxisID: 'y'
+          },
+          {
+            type: 'line',
+            label: 'Saldo total (R$)',
+            data: saldos,
+            borderColor: '#22d3ee',
+            backgroundColor: '#22d3ee',
+            tension: .3,
+            pointRadius: 3,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {mode:'index', intersect:false},
+        plugins: {
+          legend: { labels: { color: inkSoft, font: {size: 11} } },
+          tooltip: {
+            callbacks: {
+              label: function(ctx){
+                if(ctx.dataset.yAxisID === 'y1') return ' Saldo: ' + money(ctx.parsed.y);
+                return ' '+ctx.dataset.label+': ' + ctx.parsed.y + ' unidade' + (ctx.parsed.y===1?'':'s');
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: inkSoft, font: {size: 10.5} }, grid: { color: lineColor } },
+          y: {
+            position: 'left',
+            beginAtZero: true,
+            ticks: { color: inkSoft, font: {size: 10.5}, precision: 0 },
+            grid: { color: lineColor },
+            title: { display: true, text: 'unidades', color: inkSoft }
+          },
+          y1: {
+            position: 'right',
+            ticks: { color: inkSoft, font: {size: 10.5}, callback: function(v){ return money(v); } },
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'R$', color: inkSoft }
+          }
+        }
+      }
+    });
+  }
+
+  // ---------- Salvar / exportar / importar ----------
+  function downloadBlob(content, filename, type){
+    var blob = new Blob([content], {type:type});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+
+  // ---------- Privacidade: borrar/mostrar valores com chave ----------
+  var LS_HIDDEN = 'camisetas_valores_ocultos';
+  var LS_KEYHASH = 'camisetas_chave_hash';
+
+  function hasSubtleCrypto(){
+    return !!(window.crypto && window.crypto.subtle && window.isSecureContext !== false);
+  }
+
+  function sha256Hex(text){
+    if(!hasSubtleCrypto()) return Promise.resolve(null);
+    var enc = new TextEncoder().encode(text);
+    return window.crypto.subtle.digest('SHA-256', enc).then(function(buf){
+      var bytes = Array.from(new Uint8Array(buf));
+      return bytes.map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+    });
+  }
+
+  function getStoredKeyHash(){ return localStorage.getItem(LS_KEYHASH) || ''; }
+  function hasKeySet(){ return !!getStoredKeyHash(); }
+
+  function isHidden(){ return localStorage.getItem(LS_HIDDEN) === '1'; }
+  function applyHiddenState(){
+    var hidden = isHidden();
+    document.body.classList.toggle('blurred', hidden);
+    var btn = document.getElementById('btn-toggle-privacy');
+    if(btn) btn.textContent = hidden ? '👁️ Mostrar valores' : '🙈 Ocultar valores';
+  }
+
+  function promptDefineKey(msg){
+    var k1 = prompt(msg || 'Defina uma chave para proteger a exibição dos valores:');
+    if(k1 === null) return null;
+    k1 = k1.trim();
+    if(!k1){ alert('A chave não pode ficar em branco.'); return null; }
+    var k2 = prompt('Confirme a chave:');
+    if(k2 === null) return null;
+    if(k1 !== k2.trim()){ alert('As chaves não coincidem. Tente novamente.'); return null; }
+    return k1;
+  }
+
+  function setNewKey(key){
+    return sha256Hex(key).then(function(hash){
+      if(hash){ localStorage.setItem(LS_KEYHASH, hash); return true; }
+      localStorage.setItem(LS_KEYHASH, 'plain:'+btoa(unescape(encodeURIComponent(key))));
+      return true;
+    });
+  }
+
+  function checkKey(key){
+    var stored = getStoredKeyHash();
+    if(!stored) return Promise.resolve(false);
+    if(stored.indexOf('plain:')===0){
+      return Promise.resolve(stored === 'plain:'+btoa(unescape(encodeURIComponent(key))));
+    }
+    return sha256Hex(key).then(function(hash){ return hash === stored; });
+  }
+
+  function hideValues(){
+    localStorage.setItem(LS_HIDDEN, '1');
+    applyHiddenState();
+  }
+
+  function revealValues(){
+    if(!hasKeySet()){
+      var novaChave = promptDefineKey('Nenhuma chave definida ainda. Crie uma chave agora para poder ocultar/revelar os valores:');
+      if(novaChave === null) return;
+      setNewKey(novaChave).then(function(){
+        localStorage.setItem(LS_HIDDEN, '0');
+        applyHiddenState();
+      });
+      return;
+    }
+    var tentativa = prompt('Digite a chave para revelar os valores:');
+    if(tentativa === null) return;
+    checkKey(tentativa).then(function(ok){
+      if(ok){
+        localStorage.setItem(LS_HIDDEN, '0');
+        applyHiddenState();
+      } else {
+        alert('Chave incorreta.');
+      }
+    });
+  }
+
+  document.getElementById('btn-toggle-privacy').addEventListener('click', function(){
+    if(isHidden()) revealValues(); else hideValues();
+  });
+
+  document.getElementById('btn-set-key').addEventListener('click', function(){
+    if(hasKeySet()){
+      var atual = prompt('Digite a chave atual para poder alterá-la:');
+      if(atual === null) return;
+      checkKey(atual).then(function(ok){
+        if(!ok){ alert('Chave incorreta.'); return; }
+        var nova = promptDefineKey('Digite a nova chave:');
+        if(nova === null) return;
+        setNewKey(nova).then(function(){ alert('Chave atualizada com sucesso.'); });
+      });
+    } else {
+      var nova2 = promptDefineKey('Defina a chave que será usada para revelar os valores ocultos:');
+      if(nova2 === null) return;
+      setNewKey(nova2).then(function(){ alert('Chave definida com sucesso.'); });
+    }
+  });
+
+  applyHiddenState();
+
+  // Ao focar num campo numérico que está com "0", seleciona o valor —
+  // assim digitar já substitui, sem precisar apagar antes.
+  document.addEventListener('focusin', function(ev){
+    var el = ev.target;
+    if(el.tagName === 'INPUT' && el.type === 'number' && el.value === '0'){
+      el.select();
+    }
+  });
+
+  document.getElementById('btn-nova-quinzena').addEventListener('click', addNovaQuinzena);
+  document.getElementById('btn-limpar-quinzena').addEventListener('click', limparQuinzenaAtual);
+
+  // ---------- Modal: filtrar quem entra nos cards do topo ----------
+  function updateKpiFilterButtonLabel(){
+    var btn = document.getElementById('btn-kpi-filter');
+    if(!btn) return;
+    if(kpiFilterIds.length === PEOPLE.length){
+      btn.textContent = '👥 Todos os clientes';
+    } else if(kpiFilterIds.length === 1){
+      btn.textContent = '👥 Só '+getPerson(kpiFilterIds[0]).name;
+    } else {
+      btn.textContent = '👥 '+kpiFilterIds.length+' de '+PEOPLE.length+' clientes';
+    }
+  }
+
+  function openKpiFilterModal(){
+    var list = document.getElementById('kpi-filter-list');
+    list.innerHTML = '';
+    PEOPLE.forEach(function(p){
+      var row = document.createElement('div');
+      row.className = 'pdf-person-row';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.id = 'kpi-cb-'+p.id; cb.value = p.id;
+      cb.checked = kpiFilterIds.indexOf(p.id) !== -1;
+      var lbl = document.createElement('label');
+      lbl.setAttribute('for', 'kpi-cb-'+p.id);
+      lbl.textContent = p.name;
+      row.appendChild(cb); row.appendChild(lbl);
+      list.appendChild(row);
+    });
+    document.getElementById('kpi-filter-modal').classList.remove('hidden');
+  }
+  function closeKpiFilterModal(){
+    document.getElementById('kpi-filter-modal').classList.add('hidden');
+  }
+  document.getElementById('btn-kpi-filter').addEventListener('click', openKpiFilterModal);
+  document.getElementById('btn-kpi-filter-close').addEventListener('click', closeKpiFilterModal);
+
+  document.getElementById('btn-kpi-filter-toggle-all').addEventListener('click', function(){
+    var boxes = document.querySelectorAll('#kpi-filter-list input[type=checkbox]');
+    var allChecked = Array.prototype.every.call(boxes, function(b){ return b.checked; });
+    boxes.forEach(function(b){ b.checked = !allChecked; });
+  });
+
+  document.getElementById('btn-kpi-filter-apply').addEventListener('click', function(){
+    var boxes = document.querySelectorAll('#kpi-filter-list input[type=checkbox]:checked');
+    var ids = Array.prototype.map.call(boxes, function(b){ return b.value; });
+    if(!ids.length){ alert('Selecione ao menos uma pessoa.'); return; }
+    kpiFilterIds = ids;
+    closeKpiFilterModal();
+    updateKpiFilterButtonLabel();
+    renderKpis();
+    renderEvolutionChart();
+  });
+
+  // ---------- Modal: baixar PDF (com seleção de contas) ----------
+  function openPdfModal(){
+    var list = document.getElementById('pdf-people-list');
+    list.innerHTML = '';
+    PEOPLE.forEach(function(p){
+      var row = document.createElement('div');
+      row.className = 'pdf-person-row';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.id = 'pdf-cb-'+p.id; cb.checked = true; cb.value = p.id;
+      var lbl = document.createElement('label');
+      lbl.setAttribute('for', 'pdf-cb-'+p.id);
+      lbl.textContent = p.name;
+      row.appendChild(cb); row.appendChild(lbl);
+      list.appendChild(row);
+    });
+    document.getElementById('pdf-modal').classList.remove('hidden');
+  }
+  function closePdfModal(){
+    document.getElementById('pdf-modal').classList.add('hidden');
+  }
+  document.getElementById('btn-open-pdf').addEventListener('click', openPdfModal);
+  document.getElementById('btn-pdf-close').addEventListener('click', closePdfModal);
+
+  document.getElementById('btn-pdf-toggle-all').addEventListener('click', function(){
+    var boxes = document.querySelectorAll('#pdf-people-list input[type=checkbox]');
+    var allChecked = Array.prototype.every.call(boxes, function(b){ return b.checked; });
+    boxes.forEach(function(b){ b.checked = !allChecked; });
+  });
+
+  function getSelectedPdfPersonIds(){
+    var boxes = document.querySelectorAll('#pdf-people-list input[type=checkbox]:checked');
+    return Array.prototype.map.call(boxes, function(b){ return b.value; });
+  }
+
+  document.getElementById('btn-pdf-gerar').addEventListener('click', function(){
+    var personIds = getSelectedPdfPersonIds();
+    if(!personIds.length){ alert('Selecione ao menos uma conta.'); return; }
+    var scope = document.querySelector('input[name=pdf-quinzena-scope]:checked').value;
+    var unify = document.querySelector('input[name=pdf-unify]:checked').value === 'unificado';
+    closePdfModal();
+
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      alert('Não foi possível carregar o gerador de PDF. Verifique sua conexão com a internet e tente novamente.');
+      return;
+    }
+
+    if(unify || personIds.length===1){
+      buildAndDownloadPDF(personIds, scope, true);
+    } else {
+      personIds.forEach(function(pid, i){
+        setTimeout(function(){ buildAndDownloadPDF([pid], scope, false); }, i*350);
+      });
+    }
+  });
+
+  function pdfFilenameSlug(text){
+    return String(text).normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  }
+
+  function buildAndDownloadPDF(personIds, scope, unify){
+    var jsPDFCtor = window.jspdf.jsPDF;
+    var doc = new jsPDFCtor({unit:'pt', format:'a4'});
+    var marginX = 40;
+    var pageWidth = doc.internal.pageSize.getWidth();
+    var pageHeight = doc.internal.pageSize.getHeight();
+    var y = 46;
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(16);
+    doc.text('Camisetas Drop Afonso — Relatório de débitos', marginX, y);
+    y += 18;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(90,90,90);
+    var scopeLabel = scope==='atual' ? currentQuinzena().label+' ('+fmtDate(currentQuinzena().startDate)+' a '+fmtDate(currentQuinzena().endDate)+')' : 'Todas as quinzenas (acumulado)';
+    doc.text(scopeLabel, marginX, y);
+    y += 13;
+    doc.text('Gerado em '+new Date().toLocaleString('pt-BR'), marginX, y);
+    y += 20;
+    doc.setTextColor(20,20,20);
+
+    var grandTotal = 0;
+
+    personIds.forEach(function(personId, idx){
+      var person = getPerson(personId);
+
+      if(y > pageHeight - 120){ doc.addPage(); y = 46; }
+
+      doc.setFont('helvetica','bold'); doc.setFontSize(12.5);
+      doc.text(person.name, marginX, y);
+      y += 6;
+
+      var data, statusInfo = '';
+      if(scope==='atual'){
+        var q = currentQuinzena();
+        data = buildPersonDailyRows(person, q);
+        statusInfo = q.status[personId];
+      } else {
+        data = buildPersonQuinzenaSummaryRows(person);
+      }
+
+      if(!data.rows.length){
+        doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(120,120,120);
+        doc.text('Nenhum lançamento no período.', marginX, y+14);
+        doc.setTextColor(20,20,20);
+        y += 30;
+      } else {
+        var weekendSet = {};
+        (data.weekendRowIdx || []).forEach(function(ri){ weekendSet[ri] = true; });
+        doc.autoTable({
+          startY: y + 6,
+          head: [data.headers],
+          body: data.rows,
+          foot: data.footRow ? [data.footRow] : undefined,
+          margin: {left: marginX, right: marginX},
+          styles: {fontSize: 8.5, cellPadding: 5, textColor: [30,30,30]},
+          headStyles: {fillColor: [26,28,34], textColor: [255,255,255], fontStyle: 'bold'},
+          footStyles: {fillColor: [225,227,232], textColor: [20,20,20], fontStyle: 'bold'},
+          alternateRowStyles: {fillColor: [245,246,248]},
+          didParseCell: function(dataCell){
+            if(dataCell.section === 'body' && weekendSet[dataCell.row.index]){
+              dataCell.cell.styles.fillColor = [219, 234, 254];
+            }
+          },
+          columnStyles: (function(){
+            var cs = {};
+            data.moneyCols.forEach(function(ci){ cs[ci] = {halign:'right', fontStyle:'bold'}; });
+            return cs;
+          })()
+        });
+        y = doc.lastAutoTable.finalY + 8;
+      }
+
+      var narrative = buildPersonNarrative(person, scope);
+      var personTotal = narrative.total;
+      grandTotal += personTotal;
+
+      var lineHeight = 13;
+      var boxPadding = 10;
+      var colGap = 18;
+      var headingGap = 15;
+      var maxLines = Math.max(narrative.vendasLines.length, narrative.devolucoesLines.length);
+      var boxHeight = boxPadding*2 + headingGap + maxLines*lineHeight + 18;
+      if(y + boxHeight > pageHeight - 40){ doc.addPage(); y = 46; }
+
+      doc.setFillColor(245,246,248);
+      doc.setDrawColor(224,226,230);
+      doc.roundedRect(marginX, y, pageWidth - marginX*2, boxHeight, 4, 4, 'FD');
+
+      var innerLeft = marginX + 12;
+      var innerRight = pageWidth - marginX - 12;
+      var colWidth = (innerRight - innerLeft - colGap) / 2;
+      var colLeftX = innerLeft;
+      var colRightX = innerLeft + colWidth + colGap;
+
+      var headingY = y + boxPadding + 9;
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(90,90,90);
+      doc.text('VENDAS', colLeftX, headingY);
+      doc.text('DEVOLUÇÕES', colRightX, headingY);
+
+      var textStartY = headingY + headingGap;
+      doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(40,40,40);
+      narrative.vendasLines.forEach(function(line, i){
+        doc.text(doc.splitTextToSize(line, colWidth), colLeftX, textStartY + i*lineHeight);
+      });
+      narrative.devolucoesLines.forEach(function(line, i){
+        doc.text(doc.splitTextToSize(line, colWidth), colRightX, textStartY + i*lineHeight);
+      });
+
+      var ty = textStartY + maxLines*lineHeight + 6;
+      doc.setDrawColor(210,212,218);
+      doc.line(innerLeft, ty - 4, innerRight, ty - 4);
+      ty += 10;
+
+      doc.setFont('helvetica','bold'); doc.setFontSize(11);
+      var totalLine = 'Saldo total de '+person.name+': '+money(personTotal) + (statusInfo ? '   ·   '+statusInfo : '');
+      doc.text(totalLine, innerLeft, ty);
+      doc.setTextColor(20,20,20);
+
+      y += boxHeight + 18;
+
+      if(idx < personIds.length-1 && y > pageHeight - 100){ doc.addPage(); y = 46; }
+    });
+
+    if(unify && personIds.length > 1){
+      if(y > pageHeight - 60){ doc.addPage(); y = 46; }
+      doc.setDrawColor(200,200,200);
+      doc.line(marginX, y, pageWidth-marginX, y);
+      y += 20;
+      doc.setFont('helvetica','bold'); doc.setFontSize(13);
+      doc.text('Total unificado: '+money(grandTotal), marginX, y);
+    }
+
+    var filename;
+    if(personIds.length===1){
+      filename = 'relatorio-camisetas-'+pdfFilenameSlug(getPerson(personIds[0]).name)+'.pdf';
+    } else {
+      filename = 'relatorio-camisetas-unificado.pdf';
+    }
+    doc.save(filename);
+  }
+
+  document.getElementById('btn-export').addEventListener('click', function(){
+    downloadBlob(JSON.stringify(state, null, 2), 'debitos-camisetas-dados.json', 'application/json');
+  });
+
+  document.getElementById('btn-import').addEventListener('click', function(){
+    document.getElementById('file-import').click();
+  });
+  document.getElementById('file-import').addEventListener('change', function(ev){
+    var file = ev.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var parsed = JSON.parse(reader.result);
+        if(!parsed.quinzenas || !parsed.quinzenas.length) throw new Error('Arquivo inválido.');
+        state = parsed;
+        if(!state.selectedQuinzenaId) state.selectedQuinzenaId = state.quinzenas[state.quinzenas.length-1].id;
+        if(!state.selectedPersonId) state.selectedPersonId = PEOPLE[0].id;
+        fixQuinzenas();
+        render();
+        scheduleSave();
+        alert('Dados importados com sucesso.');
+      }catch(err){
+        alert('Não foi possível importar esse arquivo: '+err.message);
+      }
+    };
+    reader.readAsText(file);
+    ev.target.value = '';
+  });
+
+  document.getElementById('btn-save-html').addEventListener('click', function(){
+    document.getElementById('app-data').textContent = JSON.stringify(state);
+    var html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    downloadBlob(html, 'controle-debitos-camisetas.html', 'text/html');
+  });
+
+  // ---------- Nuvem (Supabase): login, salvar automático e histórico de versões ----------
+  // Mesmo projeto Supabase do app de DTF, porém em tabelas próprias (camisetas_state /
+  // camisetas_state_history) — os dados de um app nunca aparecem no outro.
+  var SUPABASE_URL = 'https://rvmbsqrmrkhegdophfpu.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_87-6Lrr7F59aAl1KT_AV2w_WLl6C9of';
+  var STATE_TABLE = 'camisetas_state';
+  var HISTORY_TABLE = 'camisetas_state_history';
+  var supabaseClient = null;
+  if(window.supabase && typeof window.supabase.createClient === 'function'){
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+
+  var currentSession = null;
+  var saveTimer = null;
+  var lastSavedSnapshot = null;
+  var inPasswordRecovery = false;
+
+  function setSaveStatus(cls, text){
+    var el = document.getElementById('save-status');
+    if(!el) return;
+    el.className = 'save-status' + (cls ? ' '+cls : '');
+    document.getElementById('save-status-text').textContent = text;
+  }
+
+  function setAuthMsg(text, cls){
+    var el = document.getElementById('auth-msg');
+    el.textContent = text || '';
+    el.className = 'auth-msg' + (cls ? ' '+cls : '');
+  }
+
+  function setFormMsg(elId, text, cls){
+    var el = document.getElementById(elId);
+    el.textContent = text || '';
+    el.className = 'auth-msg' + (cls ? ' '+cls : '');
+  }
+
+  function showAuthScreen(){
+    document.getElementById('auth-screen').classList.remove('hidden');
+    document.getElementById('main-app').classList.remove('ready');
+  }
+  function hideAuthScreen(){
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.add('ready');
+  }
+
+  function showAuthForm(which){
+    ['auth-form-signin','auth-form-forgot','auth-form-recovery'].forEach(function(id){
+      document.getElementById(id).classList.toggle('hidden', id !== which);
+    });
+  }
+
+  function scheduleSave(){
+    if(!supabaseClient || !currentSession) return;
+    setSaveStatus('saving', 'Salvando…');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(doSave, 1000);
+  }
+
+  function doSave(){
+    if(!supabaseClient || !currentSession) return;
+    var snapshot = JSON.stringify(state);
+    if(snapshot === lastSavedSnapshot){ setSaveStatus('saved', 'Salvo na nuvem'); return; }
+    var payload = JSON.parse(snapshot);
+    return supabaseClient.from(STATE_TABLE)
+      .upsert({ id:1, data: payload, updated_at: new Date().toISOString(), updated_by: currentSession.user.id })
+      .then(function(res){
+        if(res.error) throw res.error;
+        return supabaseClient.from(HISTORY_TABLE).insert({ data: payload, saved_by: currentSession.user.id });
+      })
+      .then(function(res){
+        if(res && res.error) throw res.error;
+        lastSavedSnapshot = snapshot;
+        setSaveStatus('saved', 'Salvo na nuvem');
+      })
+      .catch(function(err){
+        console.error('Falha ao salvar na nuvem:', err);
+        setSaveStatus('error', 'Erro ao salvar (veja o console)');
+      });
+  }
+
+  function loadStateFromCloud(){
+    return supabaseClient.from(STATE_TABLE).select('data').eq('id', 1).maybeSingle()
+      .then(function(res){
+        if(res.error) throw res.error;
+        var row = res.data;
+        if(row && row.data && row.data.quinzenas && row.data.quinzenas.length){
+          state = row.data;
+          if(!state.selectedQuinzenaId) state.selectedQuinzenaId = state.quinzenas[state.quinzenas.length-1].id;
+          if(!state.selectedPersonId) state.selectedPersonId = PEOPLE[0].id;
+          var fixed = fixQuinzenas();
+          lastSavedSnapshot = JSON.stringify(state);
+          if(fixed) scheduleSave();
+        } else {
+          return doSave();
+        }
+      })
+      .catch(function(err){
+        console.warn('Não foi possível carregar da nuvem, mantendo dados locais.', err);
+      });
+  }
+
+  function onAuthenticated(session){
+    currentSession = session;
+    hideAuthScreen();
+    setSaveStatus('saving', 'Carregando…');
+    return loadStateFromCloud().then(function(){
+      render();
+      setSaveStatus('saved', 'Sincronizado');
+    });
+  }
+
+  function onSignedOut(){
+    currentSession = null;
+    lastSavedSnapshot = null;
+    showAuthScreen();
+    showAuthForm('auth-form-signin');
+    setAuthMsg('', '');
+  }
+
+  function bootLocalOnly(warn){
+    currentSession = null;
+    hideAuthScreen();
+    render();
+    setSaveStatus('error', warn || 'Modo local (sem nuvem)');
+  }
+
+  document.getElementById('link-skip-auth') && document.getElementById('link-skip-auth').addEventListener('click', function(ev){
+    ev.preventDefault();
+    bootLocalOnly('Modo local (sem nuvem)');
+  });
+
+  document.getElementById('btn-logout').addEventListener('click', function(){
+    if(!supabaseClient){ bootLocalOnly('Modo local (sem nuvem)'); return; }
+    supabaseClient.auth.signOut();
+  });
+
+  document.getElementById('btn-auth-signin').addEventListener('click', function(){
+    if(!supabaseClient){ setAuthMsg('Sem conexão com a nuvem no momento.', 'err'); return; }
+    var email = document.getElementById('auth-email').value.trim();
+    var password = document.getElementById('auth-password').value;
+    if(!email || !password){ setAuthMsg('Preencha e-mail e senha.', 'err'); return; }
+    setAuthMsg('Entrando…', '');
+    supabaseClient.auth.signInWithPassword({ email: email, password: password }).then(function(res){
+      if(res.error){ setAuthMsg('Não foi possível entrar: '+res.error.message, 'err'); return; }
+      return onAuthenticated(res.data.session);
+    });
+  });
+
+  document.getElementById('btn-auth-signup').addEventListener('click', function(){
+    if(!supabaseClient){ setAuthMsg('Sem conexão com a nuvem no momento.', 'err'); return; }
+    var email = document.getElementById('auth-email').value.trim();
+    var password = document.getElementById('auth-password').value;
+    if(!email || !password){ setAuthMsg('Preencha e-mail e senha.', 'err'); return; }
+    if(password.length < 6){ setAuthMsg('A senha precisa ter pelo menos 6 caracteres.', 'err'); return; }
+    setAuthMsg('Criando conta…', '');
+    supabaseClient.auth.signUp({ email: email, password: password }).then(function(res){
+      if(res.error){ setAuthMsg('Não foi possível criar a conta: '+res.error.message, 'err'); return; }
+      if(res.data.session){ return onAuthenticated(res.data.session); }
+      setAuthMsg('Conta criada! Verifique seu e-mail pra confirmar antes de entrar.', 'ok');
+    });
+  });
+
+  document.getElementById('link-forgot-password').addEventListener('click', function(ev){
+    ev.preventDefault();
+    var currentEmail = document.getElementById('auth-email').value.trim();
+    document.getElementById('forgot-email').value = currentEmail;
+    setFormMsg('forgot-msg', '', '');
+    showAuthForm('auth-form-forgot');
+  });
+
+  document.getElementById('link-back-to-signin').addEventListener('click', function(ev){
+    ev.preventDefault();
+    showAuthForm('auth-form-signin');
+  });
+
+  document.getElementById('btn-forgot-send').addEventListener('click', function(){
+    if(!supabaseClient){ setFormMsg('forgot-msg', 'Sem conexão com a nuvem no momento.', 'err'); return; }
+    var email = document.getElementById('forgot-email').value.trim();
+    if(!email){ setFormMsg('forgot-msg', 'Preencha o e-mail.', 'err'); return; }
+    setFormMsg('forgot-msg', 'Enviando…', '');
+    supabaseClient.auth.resetPasswordForEmail(email, {}).then(function(res){
+      if(res.error){ setFormMsg('forgot-msg', 'Não foi possível enviar: '+res.error.message, 'err'); return; }
+      setFormMsg('forgot-msg', 'Se esse e-mail tiver uma conta, enviamos um link de redefinição. Confira também o spam.', 'ok');
+    });
+  });
+
+  document.getElementById('btn-recovery-save').addEventListener('click', function(){
+    if(!supabaseClient) return;
+    var p1 = document.getElementById('recovery-password').value;
+    var p2 = document.getElementById('recovery-password-confirm').value;
+    if(!p1 || p1.length < 6){ setFormMsg('recovery-msg', 'A senha precisa ter pelo menos 6 caracteres.', 'err'); return; }
+    if(p1 !== p2){ setFormMsg('recovery-msg', 'As senhas não coincidem.', 'err'); return; }
+    setFormMsg('recovery-msg', 'Salvando…', '');
+    supabaseClient.auth.updateUser({ password: p1 }).then(function(res){
+      if(res.error){ setFormMsg('recovery-msg', 'Não foi possível salvar: '+res.error.message, 'err'); return; }
+      inPasswordRecovery = false;
+      setFormMsg('recovery-msg', 'Senha atualizada! Entrando…', 'ok');
+    });
+  });
+
+  // Enter dispara o botão principal de cada formulário de login/senha, igual clicar no mouse.
+  function enableEnterSubmit(fieldIds, buttonId){
+    fieldIds.forEach(function(fid){
+      var el = document.getElementById(fid);
+      if(!el) return;
+      el.addEventListener('keydown', function(ev){
+        if(ev.key === 'Enter'){
+          ev.preventDefault();
+          document.getElementById(buttonId).click();
+        }
+      });
+    });
+  }
+  enableEnterSubmit(['auth-email','auth-password'], 'btn-auth-signin');
+  enableEnterSubmit(['forgot-email'], 'btn-forgot-send');
+  enableEnterSubmit(['recovery-password','recovery-password-confirm'], 'btn-recovery-save');
+
+
+  document.getElementById('btn-history').addEventListener('click', function(){
+    if(!supabaseClient || !currentSession) return;
+    var modal = document.getElementById('history-modal');
+    modal.classList.remove('hidden');
+    var list = document.getElementById('history-list');
+    list.innerHTML = '<div class="empty">Carregando…</div>';
+    supabaseClient.from(HISTORY_TABLE).select('id, saved_at').order('saved_at', {ascending:false}).limit(50)
+      .then(function(res){
+        if(res.error) throw res.error;
+        var rows = res.data || [];
+        if(!rows.length){ list.innerHTML = '<div class="empty">Nenhuma versão salva ainda.</div>'; return; }
+        list.innerHTML = '';
+        rows.forEach(function(row){
+          var item = document.createElement('div');
+          item.className = 'hist-item';
+          var when = document.createElement('div');
+          when.className = 'when';
+          when.textContent = new Date(row.saved_at).toLocaleString('pt-BR');
+          var btn = document.createElement('button');
+          btn.className = 'btn-mini';
+          btn.textContent = 'Restaurar';
+          btn.addEventListener('click', function(){ restoreHistoryVersion(row.id); });
+          item.appendChild(when);
+          item.appendChild(btn);
+          list.appendChild(item);
+        });
+      })
+      .catch(function(err){
+        console.error('Erro ao carregar histórico:', err);
+        list.innerHTML = '<div class="empty">Erro ao carregar histórico.</div>';
+      });
+  });
+
+  function restoreHistoryVersion(id){
+    if(!confirm('Restaurar essa versão? A tela vai mostrar os dados salvos naquele momento (isso também cria uma nova entrada no histórico).')) return;
+    supabaseClient.from(HISTORY_TABLE).select('data').eq('id', id).single().then(function(res){
+      if(res.error || !res.data){ alert('Não foi possível carregar essa versão.'); return; }
+      state = res.data.data;
+      if(!state.selectedQuinzenaId) state.selectedQuinzenaId = state.quinzenas[state.quinzenas.length-1].id;
+      if(!state.selectedPersonId) state.selectedPersonId = PEOPLE[0].id;
+      fixQuinzenas();
+      render();
+      scheduleSave();
+      document.getElementById('history-modal').classList.add('hidden');
+    });
+  }
+
+  document.getElementById('btn-history-close').addEventListener('click', function(){
+    document.getElementById('history-modal').classList.add('hidden');
+  });
+
+  // ---------- Bootstrap ----------
+  if(supabaseClient){
+    supabaseClient.auth.onAuthStateChange(function(event, session){
+      if(event === 'PASSWORD_RECOVERY'){
+        inPasswordRecovery = true;
+        showAuthScreen();
+        showAuthForm('auth-form-recovery');
+        setFormMsg('recovery-msg', '', '');
+        return;
+      }
+      if(inPasswordRecovery) return;
+      if(event === 'SIGNED_IN' && session && !currentSession){ onAuthenticated(session); }
+      else if(event === 'SIGNED_OUT'){ onSignedOut(); }
+    });
+    supabaseClient.auth.getSession().then(function(res){
+      var session = res.data && res.data.session;
+      if(session && !inPasswordRecovery){ onAuthenticated(session); }
+      else if(!inPasswordRecovery){ showAuthScreen(); showAuthForm('auth-form-signin'); }
+    }).catch(function(){
+      bootLocalOnly('Não foi possível conectar à nuvem — modo local');
+    });
+  } else {
+    bootLocalOnly('Não foi possível conectar à nuvem — modo local');
+  }
+})();
+<\/script>
+</body>
+</html>
+</script>
+
 <script id="app-data" type="application/json">SEED_PLACEHOLDER</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
-  // ---------- Seletor entre apps (Débitos / Entrega Direta) ----------
+  // ---------- Seletor entre apps (Débitos / Entrega Direta / Sublimação) ----------
   (function(){
     "use strict";
     var ENTREGAS_URL = 'https://weesgomez.github.io/Controle-flex-entrega-direta/';
     var viewDebitos = document.getElementById('view-debitos');
     var viewEntregas = document.getElementById('view-entregas');
+    var viewSublimacao = document.getElementById('view-sublimacao');
     var iframe = document.getElementById('entregas-iframe');
+    var subIframe = document.getElementById('sublimacao-iframe');
     var btns = document.querySelectorAll('#app-switcher .app-switch-btn');
     var iframeLoaded = false;
+    var subIframeLoaded = false;
+
+    function hideAll(){
+      viewDebitos.style.display = 'none';
+      viewEntregas.style.display = 'none';
+      viewSublimacao.style.display = 'none';
+    }
 
     function switchTo(view){
       btns.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-view')===view); });
+      hideAll();
       if(view === 'entregas'){
-        viewDebitos.style.display = 'none';
         viewEntregas.style.display = 'block';
         if(!iframeLoaded){ iframe.src = ENTREGAS_URL; iframeLoaded = true; }
+      } else if(view === 'sublimacao'){
+        viewSublimacao.style.display = 'block';
+        if(!subIframeLoaded){
+          var srcEl = document.getElementById('sublimacao-source');
+          var raw = (srcEl.textContent || '').replace(/<\\\/script/gi, '</script');
+          subIframe.srcdoc = raw;
+          subIframeLoaded = true;
+        }
       } else {
-        viewEntregas.style.display = 'none';
         viewDebitos.style.display = '';
       }
     }
@@ -1533,7 +3544,7 @@
   // ---------- Nuvem (Supabase): login, salvar automático e histórico de versões ----------
   var SUPABASE_URL = 'https://rvmbsqrmrkhegdophfpu.supabase.co';
   var SUPABASE_KEY = 'sb_publishable_87-6Lrr7F59aAl1KT_AV2w_WLl6C9of';
-  var SITE_URL = 'https://weesgomez.github.io/Debitos-Dtf/';
+  var SITE_URL = 'https://weesgomez.github.io/Sistema-Blue-Jay/';
   var supabaseClient = null;
   if(window.supabase && typeof window.supabase.createClient === 'function'){
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
