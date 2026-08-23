@@ -413,8 +413,989 @@
 </div>
 
 <div id="view-entregas" style="display:none;">
-  <iframe id="entregas-iframe" title="Entrega Direta e Flex" src="about:blank"></iframe>
+  <iframe id="entregas-iframe" title="Entrega Direta e Flex"></iframe>
 </div>
+<script type="text/plain" id="entregas-source"><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard · Ocorrências de Entrega Direta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"><\/script>
+<style>
+  :root{
+    /* dark theme is the default */
+    --bg: #0E1320;
+    --surface: #171D2E;
+    --surface-2: #1F2740;
+    --border: #2B3350;
+    --ink: #E8EBF7;
+    --ink-soft: #97A0BF;
+    --heading: #EEF2FF;
+    --navy: #5D7FD9;
+    --indigo: #8AA0FF;
+    --blue: #4C7CDB;
+    --green: #34C97C;
+    --green-soft: #163629;
+    --red: #F0596A;
+    --red-soft: #3A1C22;
+    --orange: #E2A03F;
+    --orange-soft: #3A2C16;
+    --purple: #A56AD1;
+    --purple-soft: #2E2140;
+    --coral: #F0906F;
+    --coral-soft: #3A231C;
+    --mint: #34C97C;
+    --mint-soft: #16332A;
+    --skyline: #6C9BFF;
+    --sky-soft: #182741;
+    --black-chip: #2E3038;
+    --shadow: 0 1px 2px rgba(0,0,0,.25), 0 8px 24px -12px rgba(0,0,0,.5);
+    --glow-1: #1B2440;
+    --glow-2: #16281F;
+    --radius: 18px;
+    --radius-sm: 12px;
+    --radius-pill: 999px;
+  }
+  html[data-theme="light"]{
+    --bg: #EEF1F8;
+    --surface: #FFFFFF;
+    --surface-2: #F7F8FC;
+    --border: #E4E7F1;
+    --ink: #171B2E;
+    --ink-soft: #5B6178;
+    --heading: #1F2A44;
+    --navy: #1F2A44;
+    --indigo: #3E4E8E;
+    --blue: #2F5597;
+    --green: #1E9E5B;
+    --green-soft: #E5F7ED;
+    --red: #DA4453;
+    --red-soft: #FDEAEC;
+    --orange: #C97A1E;
+    --orange-soft: #FDF1E1;
+    --purple: #8E44AD;
+    --purple-soft: #F3E8F8;
+    --coral: #E2725B;
+    --coral-soft: #FBEAE6;
+    --mint: #2E9E5B;
+    --mint-soft: #E1F3E8;
+    --skyline: #3E7BFA;
+    --sky-soft: #E8F0FF;
+    --black-chip: #2E3038;
+    --shadow: 0 1px 2px rgba(23,27,46,.04), 0 8px 24px -12px rgba(23,27,46,.12);
+    --glow-1: #E4E9FB;
+    --glow-2: #E9F3EE;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1100px 480px at 15% -10%, var(--glow-1) 0%, transparent 60%),
+      radial-gradient(900px 420px at 100% 0%, var(--glow-2) 0%, transparent 55%),
+      var(--bg);
+    font-family:'Inter', system-ui, sans-serif;
+    color:var(--ink);
+    padding:32px 20px 64px;
+    transition:background-color .2s ease, color .2s ease;
+  }
+  .wrap{max-width:1240px; margin:0 auto;}
+
+  /* ---------- header ---------- */
+  header{
+    display:flex; align-items:flex-end; justify-content:space-between; gap:24px;
+    margin-bottom:28px; flex-wrap:wrap;
+  }
+  .header-right{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .eyebrow{
+    font:600 12px/1 'JetBrains Mono', monospace; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--indigo); margin:0 0 10px;
+  }
+  h1{
+    font:800 32px/1.1 'Sora', sans-serif; margin:0 0 8px; color:var(--heading);
+    letter-spacing:-0.01em;
+  }
+  .sub{color:var(--ink-soft); font-size:14.5px; display:flex; gap:16px; flex-wrap:wrap; align-items:center;}
+  .sub b{color:var(--ink); font-weight:600;}
+  .sub .dot{width:5px; height:5px; border-radius:50%; background:var(--ink-soft); opacity:.5; display:inline-block;}
+  .pulse-live{
+    display:inline-flex; align-items:center; gap:7px; font:600 12px 'Inter'; color:var(--green);
+    background:var(--green-soft); padding:6px 12px; border-radius:var(--radius-pill); border:1px solid var(--border);
+  }
+  .pulse-live::before{content:''; width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 0 rgba(30,158,91,.5); animation:pulse 2s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(30,158,91,.45);}70%{box-shadow:0 0 0 8px rgba(30,158,91,0);}100%{box-shadow:0 0 0 0 rgba(30,158,91,0);}}
+  .theme-toggle{
+    display:inline-flex; align-items:center; gap:7px; font:600 12px 'Inter'; color:var(--ink);
+    background:var(--surface); border:1px solid var(--border); padding:6px 14px; border-radius:var(--radius-pill);
+    cursor:pointer; box-shadow:var(--shadow);
+  }
+  .theme-toggle:hover{background:var(--surface-2);}
+
+  /* ---------- kpi grid ---------- */
+  .kpi-grid{
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:22px;
+  }
+  @media(max-width:980px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:560px){.kpi-grid{grid-template-columns:1fr;}}
+  .kpi{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px 18px 16px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+    transition:transform .15s ease, box-shadow .15s ease, background-color .2s ease;
+  }
+  .kpi:hover{transform:translateY(-2px);}
+  .kpi.wide{grid-column:1 / -1;}
+  .kpi::before{content:''; position:absolute; left:0; top:0; bottom:0; width:4px;}
+  .kpi.c-navy::before{background:var(--navy);}
+  .kpi.c-green::before{background:var(--green);}
+  .kpi.c-red::before{background:var(--red);}
+  .kpi.c-blue::before{background:var(--blue);}
+  .kpi.c-orange::before{background:var(--orange);}
+  .kpi.c-purple::before{background:var(--purple);}
+  .kpi-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  .kpi-label{font:600 11.5px/1 'Inter'; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-soft);}
+  .kpi-icon{font-size:17px; opacity:.85;}
+  .kpi-value{font:800 30px/1 'Sora', sans-serif; color:var(--heading); letter-spacing:-0.01em;}
+  .kpi-value.small{font-size:22px;}
+  .kpi-sub{font-size:12.5px; color:var(--ink-soft); margin-top:7px;}
+  .kpi-sub b{color:var(--ink);}
+  .kpi-sub.warn{color:var(--red); font-weight:600;}
+  .kpi-sub.good{color:var(--green); font-weight:600;}
+
+  /* ---------- panels / charts ---------- */
+  .grid-2{display:grid; grid-template-columns:1.15fr 0.85fr; gap:16px; margin-bottom:16px;}
+  @media(max-width:900px){.grid-2{grid-template-columns:1fr;}}
+  .panel{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px 22px 14px; box-shadow:var(--shadow);
+  }
+  .panel h2{font:700 15px 'Sora', sans-serif; margin:0 0 3px; color:var(--heading);}
+  .panel .desc{font-size:12.5px; color:var(--ink-soft); margin:0 0 14px;}
+  .chart-box{position:relative; height:230px;}
+  .chart-box.tall{height:250px;}
+
+  /* ---------- legend chips ---------- */
+  .legend-row{display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 22px;}
+  .legend-chip{
+    display:inline-flex; align-items:center; gap:6px; font:700 12px 'Inter'; padding:6px 13px 6px 10px;
+    border-radius:var(--radius-pill);
+  }
+  .legend-chip .dot{width:7px; height:7px; border-radius:50%;}
+
+  /* ---------- table ---------- */
+  .table-panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:visible;}
+  .table-head{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 22px 12px; flex-wrap:wrap;}
+  .table-head h2{font:700 15px 'Sora', sans-serif; margin:0; color:var(--heading);}
+  .table-head .desc{font-size:12.5px; color:var(--ink-soft); margin:3px 0 0;}
+  .search-wrap{position:relative;}
+  .search-wrap input{
+    font:500 13px 'Inter'; padding:9px 14px 9px 32px; border-radius:var(--radius-pill); border:1px solid var(--border);
+    background:var(--surface-2); width:220px; color:var(--ink); outline:none;
+  }
+  .search-wrap input:focus{border-color:var(--blue); background:var(--surface);}
+  .search-wrap::before{content:'⌕'; position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--ink-soft); font-size:14px;}
+  .table-scroll{overflow:auto; max-height:560px; padding:0 22px 20px;}
+  table{width:100%; border-collapse:separate; border-spacing:0; font-size:13px;}
+  thead th{
+    position:sticky; top:0; background:var(--surface); text-align:left; font:600 11px 'Inter';
+    letter-spacing:.03em; text-transform:uppercase; color:var(--ink-soft); padding:10px 10px; border-bottom:2px solid var(--border);
+    white-space:nowrap; cursor:pointer; user-select:none;
+  }
+  thead th:hover{color:var(--navy);}
+  thead th .arrow{opacity:.35; font-size:10px; margin-left:3px;}
+  tbody td{padding:9px 10px; border-bottom:1px solid var(--border); white-space:nowrap; color:var(--ink);}
+  tbody tr:hover td{background:var(--surface-2);}
+  .mono{font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--ink-soft);}
+  .nd{color:#B7BBCB; font-style:italic;}
+
+  /* ---------- editable cells ---------- */
+  .cell-input{
+    font:600 12.5px 'Inter'; color:var(--ink); background:transparent; border:1px solid transparent;
+    border-radius:8px; padding:5px 7px; width:100%; min-width:70px; outline:none;
+  }
+  .cell-input.mono{font-family:'JetBrains Mono', monospace; font-size:12px; min-width:130px;}
+  .cell-input.num{width:88px; text-align:right;}
+  .cell-input[type="date"]{min-width:118px;}
+  .cell-input:hover{border-color:var(--border); background:var(--surface-2);}
+  .cell-input:focus{border-color:var(--blue); background:var(--surface); box-shadow:0 0 0 3px #2F559722;}
+  .cell-input::placeholder{color:#C7CBDA; font-style:italic;}
+
+  .add-row-btn{
+    display:inline-flex; align-items:center; gap:6px; font:700 12.5px 'Inter'; color:#fff;
+    background:var(--navy); border:none; padding:9px 16px; border-radius:var(--radius-pill); cursor:pointer;
+    box-shadow:var(--shadow); white-space:nowrap;
+  }
+  .add-row-btn:hover{background:var(--indigo);}
+  .report-btn{
+    display:inline-flex; align-items:center; gap:6px; font:700 12.5px 'Inter'; color:#fff;
+    background:var(--purple); border:none; padding:9px 16px; border-radius:var(--radius-pill); cursor:pointer;
+    box-shadow:var(--shadow); white-space:nowrap;
+  }
+  .report-btn:hover{filter:brightness(1.08);}
+  .report-btn:disabled{opacity:.45; cursor:not-allowed;}
+  .head-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .del-btn{
+    border:none; background:transparent; color:#C7CBDA; font-size:15px; cursor:pointer; padding:4px 6px; border-radius:8px;
+  }
+  .del-btn:hover{background:var(--red-soft); color:var(--red);}
+  .row-select, .select-all-chk{width:16px; height:16px; cursor:pointer; accent-color:var(--purple);}
+  .selection-bar{
+    display:flex; align-items:center; gap:10px; padding:0 22px 12px; flex-wrap:wrap;
+    font:600 12.5px 'Inter'; color:var(--ink-soft);
+  }
+  .selection-bar b{color:var(--ink);}
+  .selection-bar a{color:var(--blue); cursor:pointer; font-weight:700;}
+
+  /* ---------- chip dropdown (the signature element) ---------- */
+  .chip-select{position:relative; display:inline-block;}
+  .chip-btn{
+    display:inline-flex; align-items:center; gap:6px; font:700 11.5px 'Inter'; padding:6px 10px 6px 12px;
+    border-radius:var(--radius-pill); border:none; cursor:pointer; white-space:nowrap; letter-spacing:.01em;
+    box-shadow:0 1px 1px rgba(0,0,0,.04);
+  }
+  .chip-btn .car{font-size:9px; opacity:.85; transform:translateY(1px);}
+  .chip-menu{
+    position:absolute; z-index:40; top:calc(100% + 6px); left:0; min-width:210px;
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    box-shadow:0 10px 30px -8px rgba(23,27,46,.28); padding:6px; display:none;
+  }
+  .chip-menu.open{display:block;}
+  .chip-opt{
+    display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px;
+    border-radius:10px; cursor:pointer; margin-bottom:2px;
+  }
+  .chip-opt:last-child{margin-bottom:0;}
+  .chip-opt:hover{background:var(--surface-2);}
+  .chip-opt .pill{font:700 11.5px 'Inter'; padding:5px 12px; border-radius:var(--radius-pill);}
+  .chip-opt .check{color:var(--green); font-weight:700; font-size:13px;}
+
+  footer{margin-top:22px;}
+  .conf{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:16px 22px; display:flex; align-items:center; gap:22px; flex-wrap:wrap;
+  }
+  .conf b{color:var(--heading);}
+  .conf .ok{
+    display:inline-flex; align-items:center; gap:7px; font:700 12.5px 'Inter'; color:var(--green);
+    background:var(--green-soft); padding:6px 13px; border-radius:var(--radius-pill); border:1px solid var(--border);
+  }
+  .credit{text-align:center; color:var(--ink-soft); font-size:11.5px; margin-top:18px;}
+
+  /* ---------- granularity toggle (weekly/monthly) ---------- */
+  .panel-head-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+  .seg-toggle{display:inline-flex; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-pill); padding:3px; gap:2px;}
+  .seg-toggle button{
+    font:600 12px 'Inter'; border:none; background:transparent; color:var(--ink-soft); padding:6px 14px;
+    border-radius:var(--radius-pill); cursor:pointer;
+  }
+  .seg-toggle button.active{background:var(--blue); color:#fff;}
+
+  /* ---------- motivo / descrição ---------- */
+  .cell-input.desc-input:disabled{opacity:.35; cursor:not-allowed; background:transparent;}
+
+  /* ---------- floating horizontal scrollbar ---------- */
+  .floating-scrollbar{
+    position:fixed; bottom:0; height:16px; overflow-x:auto; overflow-y:hidden;
+    background:var(--surface); border-top:1px solid var(--border); z-index:60; display:none;
+    box-shadow:0 -4px 12px rgba(0,0,0,.15);
+  }
+  .floating-scrollbar.show{display:block;}
+  .floating-scrollbar-inner{height:1px;}
+  .floating-scrollbar::-webkit-scrollbar{height:10px;}
+  .floating-scrollbar::-webkit-scrollbar-track{background:var(--surface-2);}
+  .floating-scrollbar::-webkit-scrollbar-thumb{background:var(--blue); border-radius:999px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <p class="eyebrow">Operações · Pós-venda</p>
+      <h1>Ocorrências de Entrega Direta</h1>
+      <div class="sub" id="subLine">
+        <span><b>Período:</b> jun–ago / 2026</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <button type="button" class="theme-toggle" id="themeToggle">☀️ Claro</button>
+      <span class="pulse-live">painel ao vivo — clique nos status para simular</span>
+    </div>
+  </header>
+
+  <section class="kpi-grid" id="kpiGrid"></section>
+
+  <section class="grid-2">
+    <div class="panel">
+      <h2>Ocorrências por status</h2>
+      <p class="desc">Volume de casos em cada etapa do fluxo de pós-venda.</p>
+      <div class="chart-box"><canvas id="chartStatus"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>Resolvido × Não resolvido</h2>
+      <p class="desc">Proporção geral de casos encerrados.</p>
+      <div class="chart-box"><canvas id="chartResol"></canvas></div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-bottom:16px;">
+    <div class="panel-head-row">
+      <div>
+        <h2>Evolução</h2>
+        <p class="desc">Quantidade de ocorrências e valor total em disputa ao longo do tempo.</p>
+      </div>
+      <div class="seg-toggle" id="granularityToggle">
+        <button type="button" data-g="semanal">Semanal</button>
+        <button type="button" data-g="mensal" class="active">Mensal</button>
+      </div>
+    </div>
+    <div class="chart-box tall"><canvas id="chartMonth"></canvas></div>
+  </section>
+
+  <div class="legend-row" id="legendRow"></div>
+
+  <section class="table-panel">
+    <div class="table-head">
+      <div>
+        <h2>Análise detalhada</h2>
+        <p class="desc">Clique em um chip para reclassificar — os cartões acima recalculam na hora.</p>
+      </div>
+      <div class="search-wrap"><input type="text" id="searchBox" placeholder="Buscar pedido, status..."></div>
+      <div class="head-actions">
+        <button type="button" class="report-btn" id="reportBtn" disabled>📄 Baixar relatório (0)</button>
+        <button type="button" class="add-row-btn" id="addRowBtn">+ Adicionar pedido</button>
+      </div>
+    </div>
+    <div class="selection-bar" id="selectionBar" style="display:none;">
+      <span><b id="selectionCount">0</b> selecionado(s)</span>
+      <a id="clearSelectionLink">Limpar seleção</a>
+    </div>
+    <div class="table-scroll" id="tableScroll">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:34px; cursor:default;"><input type="checkbox" class="select-all-chk" id="selectAllChk" title="Selecionar todas as linhas visíveis"></th>
+            <th data-key="loja">Loja <span class="arrow">↕</span></th>
+            <th data-key="codigo">Código do pedido <span class="arrow">↕</span></th>
+            <th data-key="codigo_rastreio">Código de rastreamento <span class="arrow">↕</span></th>
+            <th data-key="status">Status da ocorrência <span class="arrow">↕</span></th>
+            <th data-key="motivo">Motivo <span class="arrow">↕</span></th>
+            <th data-key="motivo_descricao">Descrição do ocorrido <span class="arrow">↕</span></th>
+            <th data-key="data">Data <span class="arrow">↕</span></th>
+            <th data-key="frete">Frete <span class="arrow">↕</span></th>
+            <th data-key="valor_produto">Valor produto <span class="arrow">↕</span></th>
+            <th data-key="valor_total">Valor total <span class="arrow">↕</span></th>
+            <th data-key="canal">Canal <span class="arrow">↕</span></th>
+            <th data-key="resolucao">Resolução <span class="arrow">↕</span></th>
+            <th style="width:34px;"></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="floating-scrollbar" id="floatingScrollbar"><div class="floating-scrollbar-inner" id="floatingScrollbarInner"></div></div>
+  </section>
+
+  <footer>
+    <div class="conf">
+      <span class="ok">✓ Conferência OK</span>
+      <span>Total da base: <b id="confBase">—</b></span>
+      <span>Total do dashboard: <b id="confDash">—</b></span>
+      <span>Diferença: <b id="confDiff">R$ 0,00</b></span>
+    </div>
+    <p class="credit">Dashboard gerado a partir da base tratada · valores em BRL · dados de jun–ago/2026</p>
+  </footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"><\/script>
+<script>
+/* ============================================================
+   DATA
+   ============================================================ */
+const RAW_DATA = [{"loja":"Blue Jay","loja_original":"blua jay","codigo":"260706VKXWARGS","status":"RESOLVIDO","data":"2026-07-05","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":14.39,"valor_total":21.89,"resolucao":"Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260705SX6N2ARS","status":"REEMBOLSO APROVADO","data":"2026-07-04","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":14.1,"valor_total":21.6,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"2607086DGR08AB","status":"EM DEVOLUÇÃO","data":"2026-07-08","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":14.39,"valor_total":21.89,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"26071098419TM2","status":"RESOLVIDO","data":"2026-07-09","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":34.8,"valor_total":42.3,"resolucao":"Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"26070847139J4G","status":"REEMBOLSO APROVADO","data":"2026-07-08","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":36.2,"valor_total":43.7,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260717VMWNG5FK","status":"DEVOLVIDO","data":"2026-06-28","mes":"06/2026","canal":"Shopee","frete":7.5,"valor_produto":74.25,"valor_total":81.75,"resolucao":"Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260706VTXJKUXE","status":"DEVOLVIDO","data":"2026-06-30","mes":"06/2026","canal":"Shopee","frete":7.5,"valor_produto":14.39,"valor_total":21.89,"resolucao":"Resolvido"},{"loja":"Blue Jay","loja_original":"blua jay","codigo":"2606289SA291BY","status":"DEVOLVIDO","data":"2026-07-05","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":13.9,"valor_total":21.4,"resolucao":"Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"2607207KQ9M056","status":"REEMBOLSO APROVADO","data":"2026-07-20","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":25.9,"valor_total":33.4,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260722CFB5QNCA","status":"REEMBOLSO APROVADO","data":"2026-07-22","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":37.5,"valor_total":45.0,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"26073025T2CSTS","status":"REEMBOLSO APROVADO","data":"2026-07-30","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":14.75,"valor_total":22.25,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"2607315R2ET1WF","status":"REEMBOLSO APROVADO","data":"2026-07-31","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":14.75,"valor_total":22.25,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260714NABTERA7","status":"DEVOLVIDO","data":"2026-07-20","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":37.5,"valor_total":45.0,"resolucao":"Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"2607301XHPM7NV","status":"REEMBOLSO APROVADO","data":"2026-07-22","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":39.37,"valor_total":46.87,"resolucao":"Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260805JED8UUWX","status":"REEMBOLSO APROVADO","data":"2026-08-05","mes":"08/2026","canal":"Shopee","frete":7.5,"valor_produto":14.85,"valor_total":22.35,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260806KH7X53JC","status":"REEMBOLSO APROVADO","data":"2026-08-05","mes":"08/2026","canal":"Shopee","frete":7.5,"valor_produto":14.85,"valor_total":22.35,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260805GWJ5HR74","status":"REEMBOLSO APROVADO","data":"2026-08-04","mes":"08/2026","canal":"Shopee","frete":7.5,"valor_produto":14.85,"valor_total":22.35,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260807QNQD7GTW","status":"REEMBOLSO APROVADO","data":"2026-08-07","mes":"08/2026","canal":"Shopee","frete":7.5,"valor_produto":14.95,"valor_total":22.45,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blua jay","codigo":"260808RGVRTGHN","status":"REEMBOLSO APROVADO","data":"2026-08-07","mes":"08/2026","canal":"Shopee","frete":7.5,"valor_produto":14.95,"valor_total":22.45,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260806KHK7KE45","status":"DEVOLVIDO","data":"2026-07-20","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":72.51,"valor_total":80.01,"resolucao":"Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"2608018MUYW2A1","status":"DEVOLVIDO","data":"2026-07-22","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":39.67,"valor_total":47.17,"resolucao":"Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"26806KTS9HG29","status":"DEVOLVIDO","data":"2026-07-30","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":14.85,"valor_total":22.35,"resolucao":"Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260806KAJX7CCN","status":"CANCELADO","data":"2026-07-31","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":43.62,"valor_total":51.12,"resolucao":"Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260806N0XG7YBU","status":"DEVOLVIDO","data":"2026-07-20","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":77.9,"valor_total":85.4,"resolucao":"Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260807NN6SF062","status":"DEVOLVIDO","data":"2026-07-22","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":34.8,"valor_total":42.3,"resolucao":"Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260814A0PFS2BD","status":"REEMBOLSO APROVADO","data":"2026-08-05","mes":"08/2026","canal":"Shopee","frete":7.5,"valor_produto":37.5,"valor_total":45.0,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260814ACQ21JKX","status":"REEMBOLSO APROVADO","data":"2026-07-31","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":37.5,"valor_total":45.0,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"260814C3BWGG4M","status":"REEMBOLSO APROVADO","data":"2026-07-20","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":37.5,"valor_total":45.0,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"N/D","status":"DEVOLVIDO","data":"2026-07-22","mes":"07/2026","canal":"Shopee","frete":7.5,"valor_produto":null,"valor_total":null,"resolucao":"Não Resolvido"},{"loja":"Blue Jay","loja_original":"blue jay","codigo":"N/D","status":"PEDINDO EVIDENCIAS","data":"2026-08-05","mes":"08/2026","canal":"Shopee","frete":7.5,"valor_produto":null,"valor_total":null,"resolucao":"Não Resolvido"}];
+
+const STATUS_META = {
+  "RESOLVIDO":               { label:"Resolvido",              bg:"#2F5597", fg:"#FFFFFF" },
+  "REEMBOLSO APROVADO":      { label:"Reembolso aprovado",      bg:"#E2725B", fg:"#FFFFFF" },
+  "DEVOLVIDO":               { label:"Devolvido",               bg:"#2E9E5B", fg:"#FFFFFF" },
+  "EM DEVOLUÇÃO":            { label:"Em devolução",            bg:"#8E44AD", fg:"#FFFFFF" },
+  "PEDINDO EVIDENCIAS":      { label:"Pedindo evidências",      bg:"#9CC2FA", fg:"#173A66" },
+  "CONTINUAR":               { label:"Continuar",               bg:"#17A2B8", fg:"#FFFFFF" },
+  "CANCELADO":               { label:"Cancelado",               bg:"#2E3038", fg:"#FFFFFF" },
+  "SOLICITAÇÃO CANCELAMENTO":{ label:"Solicitação cancelamento",bg:"#BFE6CE", fg:"#1E7145" },
+};
+const STATUS_ORDER = Object.keys(STATUS_META);
+
+const RESOL_META = {
+  "Resolvido":     { label:"Resolvido",      bg:"#2E9E5B", fg:"#FFFFFF" },
+  "Não Resolvido": { label:"Não resolvido",  bg:"#DA4453", fg:"#FFFFFF" },
+};
+const RESOL_ORDER = Object.keys(RESOL_META);
+
+const CANAL_META = {
+  "Shopee":        { label:"Shopee",        bg:"#EE4D2D", fg:"#FFFFFF" },
+  "Mercado Livre": { label:"Mercado Livre",  bg:"#FFE600", fg:"#1A237E" },
+};
+const CANAL_ORDER = Object.keys(CANAL_META);
+
+const LOJA_META = {
+  "Blue Jay":    { label:"Blue Jay",    bg:"#2F5597", fg:"#FFFFFF" },
+  "Edien Store": { label:"Edien Store", bg:"#C9A227", fg:"#2E2400" },
+  "Domix":       { label:"Domix",       bg:"#6C5CE7", fg:"#FFFFFF" },
+};
+const LOJA_ORDER = Object.keys(LOJA_META);
+
+const MOTIVO_META = {
+  "Não recebi":      { label:"Não recebi",      bg:"#4C7CDB", fg:"#FFFFFF" },
+  "Chegou avariado": { label:"Chegou avariado",  bg:"#E2A03F", fg:"#3A2600" },
+};
+const MOTIVO_ORDER = Object.keys(MOTIVO_META);
+
+const FIELD_META = {
+  status:    { order: STATUS_ORDER, meta: STATUS_META },
+  resolucao: { order: RESOL_ORDER,  meta: RESOL_META  },
+  canal:     { order: CANAL_ORDER,  meta: CANAL_META  },
+  loja:      { order: LOJA_ORDER,   meta: LOJA_META   },
+  motivo:    { order: MOTIVO_ORDER, meta: MOTIVO_META },
+};
+
+// working state (deep copy so edits don't mutate the source)
+let DATA = RAW_DATA.map(r => ({...r}));
+let uidCounter = 0;
+DATA.forEach(r=>{
+  if(r.codigo_rastreio===undefined || r.codigo_rastreio==='') r.codigo_rastreio='N/D';
+  if(r.motivo===undefined) r.motivo = r.resolucao==='Não Resolvido' ? 'Não recebi' : 'Não recebi';
+  if(r.motivo_descricao===undefined) r.motivo_descricao = '';
+  r._uid = uidCounter++;
+});
+let sortKey = null, sortDir = 1;
+DATA.forEach((r,i)=>recomputeValorTotal(i));
+
+// ---------- Seleção de linhas p/ relatório ----------
+const selectedUids = new Set();
+
+const fmtBRL = v => (v==null) ? '<span class="nd">N/D</span>' : v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fmtBRLplain = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fmtDate = iso => { const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
+
+/* ============================================================
+   CHIP DROPDOWN (signature component)
+   ============================================================ */
+function chipButtonHTML(meta){
+  return `<button type="button" class="chip-btn" style="background:${meta.bg};color:${meta.fg}">${meta.label}<span class="car">▾</span></button>`;
+}
+function chipMenuHTML(order, meta, current, field, rowIdx){
+  const opts = order.map(key=>{
+    const m = meta[key];
+    const checked = key===current ? `<span class="check">✓</span>` : '';
+    return `<div class="chip-opt" data-field="${field}" data-row="${rowIdx}" data-key="${key}">
+              <span class="pill" style="background:${m.bg};color:${m.fg}">${m.label}</span>${checked}
+            </div>`;
+  }).join('');
+  return `<div class="chip-menu">${opts}</div>`;
+}
+function renderChip(field, value, rowIdx){
+  const { order, meta } = FIELD_META[field];
+  return `<div class="chip-select" data-field="${field}" data-row="${rowIdx}">
+            ${chipButtonHTML(meta[value])}
+            ${chipMenuHTML(order, meta, value, field, rowIdx)}
+          </div>`;
+}
+
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('.chip-btn');
+  document.querySelectorAll('.chip-menu.open').forEach(m=>{
+    if(!btn || m !== btn.nextElementSibling) m.classList.remove('open');
+  });
+  if(btn){
+    const menu = btn.nextElementSibling;
+    menu.classList.toggle('open');
+    return;
+  }
+  const opt = e.target.closest('.chip-opt');
+  if(opt){
+    const field = opt.dataset.field, row = +opt.dataset.row, key = opt.dataset.key;
+    DATA[row][field] = key;
+    renderAll();
+    return;
+  }
+  const del = e.target.closest('.del-btn');
+  if(del){
+    const row = +del.dataset.row;
+    selectedUids.delete(DATA[row]._uid);
+    DATA.splice(row, 1);
+    renderAll();
+    return;
+  }
+});
+
+function recomputeValorTotal(row){
+  const r = DATA[row];
+  // total should show up as long as at least ONE of frete/valor_produto is known —
+  // e.g. a refund can come back as just the R$7,50 frete even with no product value yet.
+  if(r.frete==null && r.valor_produto==null){
+    r.valor_total = null;
+  } else {
+    r.valor_total = +((r.frete||0) + (r.valor_produto||0)).toFixed(2);
+  }
+}
+
+// live updates while typing: patch just this row + refresh KPIs/charts, don't rebuild the table
+// (rebuilding would blow away focus mid-keystroke)
+document.getElementById('tbody').addEventListener('input', (e)=>{
+  const el = e.target.closest('.cell-input');
+  if(!el) return;
+  const field = el.dataset.field, row = +el.dataset.row;
+  if(field==='codigo' || field==='codigo_rastreio'){
+    DATA[row][field] = el.value.trim() === '' ? 'N/D' : el.value.trim();
+  } else if(field==='motivo_descricao'){
+    DATA[row].motivo_descricao = el.value;
+  } else if(field==='data'){
+    if(el.value) DATA[row].data = el.value;
+  } else if(field==='frete' || field==='valor_produto'){
+    DATA[row][field] = el.value === '' ? null : parseFloat(el.value);
+    recomputeValorTotal(row);
+    const tr = document.querySelector(`tr[data-row="${row}"] .cell-valor-total`);
+    if(tr) tr.innerHTML = `<b>${fmtBRL(DATA[row].valor_total)}</b>`;
+  }
+  renderKPIs();
+  renderCharts();
+});
+// NOTE: deliberately no full renderTable() on blur/change here — rebuilding the
+// table while a sibling field's focus/blur is still resolving can detach the
+// element the user is interacting with (loses the keystroke). Sorting/search
+// still fully re-render, just never as a side-effect of editing a cell.
+
+// ---------- Seleção de linhas (checkbox por linha + selecionar todas) ----------
+document.getElementById('tbody').addEventListener('change', (e)=>{
+  const chk = e.target.closest('.row-select');
+  if(!chk) return;
+  const uid = +chk.dataset.uid;
+  if(chk.checked) selectedUids.add(uid); else selectedUids.delete(uid);
+  updateSelectionUI();
+});
+
+document.getElementById('selectAllChk').addEventListener('change', (e)=>{
+  const checked = e.target.checked;
+  document.querySelectorAll('#tbody .row-select').forEach(chk=>{
+    const uid = +chk.dataset.uid;
+    chk.checked = checked;
+    if(checked) selectedUids.add(uid); else selectedUids.delete(uid);
+  });
+  updateSelectionUI();
+});
+
+document.getElementById('clearSelectionLink').addEventListener('click', ()=>{
+  selectedUids.clear();
+  renderTable();
+  updateSelectionUI();
+});
+
+function updateSelectionUI(){
+  const count = selectedUids.size;
+  const btn = document.getElementById('reportBtn');
+  btn.textContent = `📄 Baixar relatório (${count})`;
+  btn.disabled = count === 0;
+  const bar = document.getElementById('selectionBar');
+  bar.style.display = count > 0 ? 'flex' : 'none';
+  document.getElementById('selectionCount').textContent = count;
+
+  const visibleUids = Array.prototype.map.call(document.querySelectorAll('#tbody .row-select'), chk=>+chk.dataset.uid);
+  const selectAll = document.getElementById('selectAllChk');
+  if(visibleUids.length === 0){
+    selectAll.checked = false; selectAll.indeterminate = false;
+  } else {
+    const allSelected = visibleUids.every(uid=>selectedUids.has(uid));
+    const someSelected = visibleUids.some(uid=>selectedUids.has(uid));
+    selectAll.checked = allSelected;
+    selectAll.indeterminate = someSelected && !allSelected;
+  }
+}
+
+document.getElementById('addRowBtn').addEventListener('click', ()=>{
+  const today = new Date().toISOString().slice(0,10);
+  DATA.push({
+    loja:'Blue Jay', loja_original:'', codigo:'N/D', codigo_rastreio:'N/D', status:'RESOLVIDO',
+    motivo:'Não recebi', motivo_descricao:'', data:today, mes:'', canal:'Shopee', frete:7.5,
+    valor_produto:null, valor_total:null, resolucao:'Não Resolvido', _uid: uidCounter++
+  });
+  renderAll();
+  document.querySelector('.table-scroll').scrollTop = document.querySelector('.table-scroll').scrollHeight;
+});
+
+/* ============================================================
+   RELATÓRIO EM PDF (só das linhas selecionadas)
+   ============================================================ */
+function slugify(text){
+  return String(text).normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+}
+
+function buildSelectedReport(){
+  const rows = DATA.filter(r => selectedUids.has(r._uid));
+  if(!rows.length) return;
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert('Não foi possível carregar o gerador de PDF. Verifique sua conexão com a internet e tente novamente.');
+    return;
+  }
+
+  const jsPDFCtor = window.jspdf.jsPDF;
+  const doc = new jsPDFCtor({unit:'pt', format:'a4', orientation:'landscape'});
+  const marginX = 30;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 40;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(15);
+  doc.text('Ocorrências de Entrega Direta — Relatório selecionado', marginX, y);
+  y += 16;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90,90,90);
+  doc.text(rows.length+' ocorrência(s) selecionada(s) · Gerado em '+new Date().toLocaleString('pt-BR'), marginX, y);
+  y += 14;
+  doc.setTextColor(20,20,20);
+
+  const head = [['Loja','Código','Rastreamento','Status','Motivo','Descrição','Data','Frete','Vlr. produto','Vlr. total','Canal','Resolução']];
+  const body = rows.map(r => [
+    LOJA_META[r.loja] ? LOJA_META[r.loja].label : r.loja,
+    r.codigo,
+    r.codigo_rastreio,
+    STATUS_META[r.status] ? STATUS_META[r.status].label : r.status,
+    MOTIVO_META[r.motivo] ? MOTIVO_META[r.motivo].label : r.motivo,
+    r.motivo_descricao || '—',
+    fmtDate(r.data),
+    r.frete==null ? 'N/D' : fmtBRLplain(r.frete),
+    r.valor_produto==null ? 'N/D' : fmtBRLplain(r.valor_produto),
+    r.valor_total==null ? 'N/D' : fmtBRLplain(r.valor_total),
+    r.canal,
+    RESOL_META[r.resolucao] ? RESOL_META[r.resolucao].label : r.resolucao
+  ]);
+
+  const totalSelecionado = rows.reduce((s,r)=> s + (r.valor_total||0), 0);
+  const footRow = ['TOTAL','','','','','','','','','', '', fmtBRLplain(totalSelecionado)];
+
+  doc.autoTable({
+    startY: y + 6,
+    head: head,
+    body: body,
+    foot: [footRow],
+    margin: {left: marginX, right: marginX},
+    styles: {fontSize: 7.5, cellPadding: 4, textColor: [30,30,30], overflow:'linebreak'},
+    headStyles: {fillColor:[23,29,46], textColor:[255,255,255], fontStyle:'bold'},
+    footStyles: {fillColor:[225,227,232], textColor:[20,20,20], fontStyle:'bold'},
+    alternateRowStyles: {fillColor:[245,246,248]},
+    columnStyles: {
+      7:{halign:'right'}, 8:{halign:'right'}, 9:{halign:'right', fontStyle:'bold'}
+    }
+  });
+
+  const finalY = doc.lastAutoTable.finalY + 22;
+  doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text('Total selecionado: '+fmtBRLplain(totalSelecionado), marginX, Math.min(finalY, doc.internal.pageSize.getHeight()-30));
+
+  doc.save('relatorio-ocorrencias-selecionadas.pdf');
+}
+
+document.getElementById('reportBtn').addEventListener('click', buildSelectedReport);
+
+/* ============================================================
+   KPI CARDS
+   ============================================================ */
+function computeKPIs(){
+  const n = DATA.length;
+  const resolved = DATA.filter(r=>r.resolucao==='Resolvido').length;
+  const notResolved = n - resolved;
+  const pct = n? resolved/n : 0;
+  const withValue = DATA.filter(r=>r.valor_total!=null);
+  const total = withValue.reduce((s,r)=>s+r.valor_total,0);
+  const avg = withValue.length ? total/withValue.length : 0;
+  const maxRow = withValue.reduce((a,b)=> (a.valor_total>b.valor_total? a : b), withValue[0]);
+  const counts = {};
+  STATUS_ORDER.forEach(k=>counts[k]=0);
+  DATA.forEach(r=>counts[r.status]=(counts[r.status]||0)+1);
+  const topStatus = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  return {n, resolved, notResolved, pct, total, avg, maxRow, counts, topStatus};
+}
+
+function renderKPIs(){
+  const k = computeKPIs();
+  const cards = [
+    {cls:'c-navy',  icon:'📦', label:'Total de ocorrências', value:k.n, sub:`Registros na base tratada`},
+    {cls:'c-green', icon:'✅', label:'Resolvidas', value:k.resolved, sub:`<span class="good">${(k.pct*100).toFixed(1)}% do total</span>`},
+    {cls:'c-red',   icon:'⚠️', label:'Não resolvidas', value:k.notResolved, sub:`<span class="warn">${((1-k.pct)*100).toFixed(1)}% do total — atenção</span>`},
+    {cls:'c-blue',  icon:'🎯', label:'% de resolução', value:(k.pct*100).toFixed(1)+'%', sub:'Meta de referência: 80%'},
+    {cls:'c-navy',  icon:'💰', label:'Valor total em disputa', value:fmtBRLplain(k.total), small:true, sub:'Frete + valor do produto'},
+    {cls:'c-blue',  icon:'📊', label:'Ticket médio', value:fmtBRLplain(k.avg), small:true, sub:'Por ocorrência'},
+    {cls:'c-orange',icon:'🔺', label:'Maior ocorrência', value:fmtBRLplain(k.maxRow.valor_total), small:true, sub:`Pedido <b>${k.maxRow.codigo}</b>`},
+    {cls:'c-purple',icon:'🏷️', label:'Status mais frequente', value:STATUS_META[k.topStatus[0]].label, small:true, sub:`Frequência: <b>${k.topStatus[1]}</b> ocorrências`},
+  ];
+  document.getElementById('kpiGrid').innerHTML = cards.map(c=>`
+    <div class="kpi ${c.cls} ${c.wide?'wide':''}">
+      <div class="kpi-top"><span class="kpi-label">${c.label}</span><span class="kpi-icon">${c.icon}</span></div>
+      <div class="kpi-value ${c.small?'small':''}">${c.value}</div>
+      <div class="kpi-sub">${c.sub}</div>
+    </div>`).join('');
+
+  document.getElementById('confBase').textContent = fmtBRLplain(k.total);
+  document.getElementById('confDash').textContent = fmtBRLplain(k.total);
+  document.getElementById('confDiff').textContent = fmtBRLplain(0);
+}
+
+/* ============================================================
+   LEGEND
+   ============================================================ */
+function renderLegend(){
+  document.getElementById('legendRow').innerHTML = STATUS_ORDER.map(k=>{
+    const m = STATUS_META[k];
+    return `<span class="legend-chip" style="background:${m.bg};color:${m.fg}"><span class="dot" style="background:${m.fg}"></span>${m.label}</span>`;
+  }).join('');
+}
+
+function renderSubline(){
+  document.getElementById('subLine').innerHTML = `
+    <span><b>Lojas:</b> ${LOJA_ORDER.join(', ')}</span>
+    <span class="dot"></span>
+    <span><b>Canais:</b> ${CANAL_ORDER.join(', ')}</span>
+    <span class="dot"></span>
+    <span><b>Período:</b> jun–ago / 2026</span>`;
+}
+
+/* ============================================================
+   CHARTS
+   ============================================================ */
+let chartStatus, chartResol, chartMonth;
+let chartGranularity = 'mensal';
+function getCSSVar(name){
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+// Monday-start ISO-ish week key for a yyyy-mm-dd date string
+function weekKeyAndLabel(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = (d.getDay() + 6) % 7; // 0=Mon
+  const monday = new Date(d); monday.setDate(d.getDate() - day);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  const pad = n => String(n).padStart(2,'0');
+  const key = `${monday.getFullYear()}-${pad(monday.getMonth()+1)}-${pad(monday.getDate())}`;
+  const label = `${pad(monday.getDate())}/${pad(monday.getMonth()+1)}–${pad(sunday.getDate())}/${pad(sunday.getMonth()+1)}`;
+  return {key, label};
+}
+function renderCharts(){
+  const k = computeKPIs();
+  const textColor = getCSSVar('--ink');
+  const mutedColor = getCSSVar('--ink-soft');
+  const gridColor = getCSSVar('--border');
+  const statusLabels = STATUS_ORDER.map(s=>STATUS_META[s].label);
+  const statusData = STATUS_ORDER.map(s=>k.counts[s]);
+  const statusColors = STATUS_ORDER.map(s=>STATUS_META[s].bg);
+
+  const ctx1 = document.getElementById('chartStatus');
+  if(chartStatus) chartStatus.destroy();
+  chartStatus = new Chart(ctx1, {
+    type:'bar',
+    data:{ labels:statusLabels, datasets:[{ data:statusData, backgroundColor:statusColors, borderRadius:8, maxBarThickness:46 }]},
+    options:{
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.formattedValue} ocorrências`}}},
+      scales:{
+        x:{grid:{display:false}, ticks:{color:mutedColor, font:{size:10.5, family:'Inter'}}},
+        y:{beginAtZero:true, ticks:{color:mutedColor, precision:0}, grid:{color:gridColor}}
+      },
+      responsive:true, maintainAspectRatio:false
+    }
+  });
+
+  const ctx2 = document.getElementById('chartResol');
+  if(chartResol) chartResol.destroy();
+  chartResol = new Chart(ctx2, {
+    type:'doughnut',
+    data:{ labels:['Resolvido','Não resolvido'], datasets:[{ data:[k.resolved,k.notResolved], backgroundColor:[RESOL_META['Resolvido'].bg, RESOL_META['Não Resolvido'].bg], borderWidth:0 }]},
+    options:{
+      cutout:'68%',
+      plugins:{legend:{position:'bottom', labels:{color:textColor, boxWidth:10, font:{size:11.5, family:'Inter'}}},
+        tooltip:{callbacks:{label:c=>` ${c.label}: ${c.formattedValue} (${(c.parsed/(k.resolved+k.notResolved)*100).toFixed(1)}%)`}}},
+      responsive:true, maintainAspectRatio:false
+    }
+  });
+
+  const buckets = {};
+  const bucketLabels = {};
+  DATA.forEach(r=>{
+    if(!r.data) return;
+    let key, label;
+    if(chartGranularity === 'semanal'){
+      const wk = weekKeyAndLabel(r.data);
+      key = wk.key; label = wk.label;
+    } else {
+      const [yy,mm] = r.data.split('-');
+      key = `${yy}-${mm}`;
+      const names=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      label = `${names[+mm-1]}/${yy}`;
+    }
+    buckets[key] = buckets[key] || {qty:0, val:0};
+    buckets[key].qty++;
+    buckets[key].val += (r.valor_total||0);
+    bucketLabels[key] = label;
+  });
+  const sortedKeys = Object.keys(buckets).sort();
+  const bucketChartLabels = sortedKeys.map(k=>bucketLabels[k]);
+
+  const ctx3 = document.getElementById('chartMonth');
+  if(chartMonth) chartMonth.destroy();
+  chartMonth = new Chart(ctx3, {
+    data:{
+      labels:bucketChartLabels,
+      datasets:[
+        { type:'bar', label:'Valor total (R$)', data:sortedKeys.map(k=>buckets[k].val.toFixed(2)), backgroundColor:getCSSVar('--surface-2'), borderColor:gridColor, borderRadius:8, order:2, yAxisID:'y1' },
+        { type:'line', label:'Qtd. ocorrências', data:sortedKeys.map(k=>buckets[k].qty), borderColor:'#DA4453', backgroundColor:'#DA4453', tension:.35, borderWidth:3, pointRadius:5, pointBackgroundColor:getCSSVar('--surface'), pointBorderColor:'#DA4453', pointBorderWidth:2, order:1, yAxisID:'y' }
+      ]
+    },
+    options:{
+      plugins:{legend:{position:'bottom', labels:{color:textColor, boxWidth:10, font:{size:11.5, family:'Inter'}}}},
+      scales:{
+        y:{ beginAtZero:true, position:'left', title:{display:true,text:'Quantidade', color:mutedColor}, ticks:{color:mutedColor, precision:0}, grid:{color:gridColor} },
+        y1:{ beginAtZero:true, position:'right', grid:{drawOnChartArea:false}, title:{display:true,text:'Valor (R$)', color:mutedColor}, ticks:{color:mutedColor} },
+        x:{ ticks:{color:mutedColor, font:{size: chartGranularity==='semanal'?10:11.5}}, grid:{display:false} }
+      },
+      responsive:true, maintainAspectRatio:false
+    }
+  });
+}
+
+/* ============================================================
+   TABLE
+   ============================================================ */
+function renderTable(){
+  const q = document.getElementById('searchBox').value.trim().toLowerCase();
+  let rows = DATA.map((r,i)=>({...r, __idx:i}));
+  if(q){
+    rows = rows.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q)));
+  }
+  if(sortKey){
+    rows.sort((a,b)=>{
+      let va=a[sortKey], vb=b[sortKey];
+      if(va==null) va = -Infinity; if(vb==null) vb = -Infinity;
+      if(typeof va === 'string') va = va.toLowerCase();
+      if(typeof vb === 'string') vb = vb.toLowerCase();
+      return va>vb ? sortDir : va<vb ? -sortDir : 0;
+    });
+  }
+  document.getElementById('tbody').innerHTML = rows.map(r=>`
+    <tr data-row="${r.__idx}">
+      <td><input type="checkbox" class="row-select" data-uid="${r._uid}" ${selectedUids.has(r._uid) ? 'checked' : ''}></td>
+      <td>${renderChip('loja', r.loja, r.__idx)}</td>
+      <td><input type="text" class="cell-input mono" data-field="codigo" data-row="${r.__idx}"
+            value="${r.codigo==='N/D' ? '' : r.codigo}" placeholder="N/D"></td>
+      <td><input type="text" class="cell-input mono" data-field="codigo_rastreio" data-row="${r.__idx}"
+            value="${r.codigo_rastreio==='N/D' ? '' : r.codigo_rastreio}" placeholder="N/D"></td>
+      <td>${renderChip('status', r.status, r.__idx)}</td>
+      <td>${renderChip('motivo', r.motivo, r.__idx)}</td>
+      <td><input type="text" class="cell-input desc-input" data-field="motivo_descricao" data-row="${r.__idx}"
+            value="${r.motivo_descricao||''}" placeholder="${r.motivo==='Chegou avariado' ? 'Descreva o que aconteceu...' : '—'}"
+            ${r.motivo==='Chegou avariado' ? '' : 'disabled'} style="min-width:220px;"></td>
+      <td><input type="date" class="cell-input" data-field="data" data-row="${r.__idx}" value="${r.data}"></td>
+      <td><input type="number" step="0.01" class="cell-input num" data-field="frete" data-row="${r.__idx}"
+            value="${r.frete==null? '' : r.frete}" placeholder="N/D"></td>
+      <td><input type="number" step="0.01" class="cell-input num" data-field="valor_produto" data-row="${r.__idx}"
+            value="${r.valor_produto==null? '' : r.valor_produto}" placeholder="N/D"></td>
+      <td class="cell-valor-total"><b>${fmtBRL(r.valor_total)}</b></td>
+      <td>${renderChip('canal', r.canal, r.__idx)}</td>
+      <td>${renderChip('resolucao', r.resolucao, r.__idx)}</td>
+      <td><button type="button" class="del-btn" data-row="${r.__idx}" title="Remover pedido">✕</button></td>
+    </tr>`).join('');
+  updateSelectionUI();
+}
+
+document.querySelectorAll('thead th[data-key]').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(sortKey===key) sortDir *= -1; else { sortKey=key; sortDir=1; }
+    renderTable();
+  });
+});
+document.getElementById('searchBox').addEventListener('input', renderTable);
+
+document.getElementById('granularityToggle').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-g]');
+  if(!btn) return;
+  chartGranularity = btn.dataset.g;
+  document.querySelectorAll('#granularityToggle button').forEach(b=>b.classList.toggle('active', b===btn));
+  renderCharts();
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function renderAll(){
+  renderKPIs();
+  renderCharts();
+  renderTable();
+  renderSubline();
+  requestAnimationFrame(updateFloatingScrollbar);
+}
+renderLegend();
+renderAll();
+
+/* ============================================================
+   THEME TOGGLE (dark by default)
+   ============================================================ */
+const themeToggle = document.getElementById('themeToggle');
+themeToggle.addEventListener('click', ()=>{
+  const isLight = document.documentElement.dataset.theme === 'light';
+  document.documentElement.dataset.theme = isLight ? 'dark' : 'light';
+  themeToggle.textContent = isLight ? '☀️ Claro' : '🌙 Escuro';
+  renderCharts();
+});
+
+/* ============================================================
+   FLOATING HORIZONTAL SCROLLBAR
+   Keeps a scrollbar reachable without needing to scroll all the
+   way to the bottom of the (long) table to find the native one.
+   ============================================================ */
+const tableScroll = document.getElementById('tableScroll');
+const floatingScrollbar = document.getElementById('floatingScrollbar');
+const floatingScrollbarInner = document.getElementById('floatingScrollbarInner');
+let syncingScroll = false;
+
+function updateFloatingScrollbar(){
+  const table = tableScroll.querySelector('table');
+  if(!table) return;
+  const contentWidth = table.scrollWidth;
+  const visibleWidth = tableScroll.clientWidth;
+  if(contentWidth <= visibleWidth + 2){
+    floatingScrollbar.classList.remove('show');
+    return;
+  }
+  const rect = tableScroll.getBoundingClientRect();
+  const vh = window.innerHeight;
+  const nativeScrollbarVisible = rect.bottom <= vh; // whole box (incl. its own scrollbar) fits on screen
+  const inView = rect.top < vh && rect.bottom > 0;
+  if(inView && !nativeScrollbarVisible){
+    floatingScrollbar.classList.add('show');
+    floatingScrollbar.style.left = Math.max(rect.left,0) + 'px';
+    floatingScrollbar.style.width = rect.width + 'px';
+    floatingScrollbarInner.style.width = contentWidth + 'px';
+    if(!syncingScroll) floatingScrollbar.scrollLeft = tableScroll.scrollLeft;
+  } else {
+    floatingScrollbar.classList.remove('show');
+  }
+}
+tableScroll.addEventListener('scroll', ()=>{
+  syncingScroll = true;
+  floatingScrollbar.scrollLeft = tableScroll.scrollLeft;
+  syncingScroll = false;
+});
+floatingScrollbar.addEventListener('scroll', ()=>{
+  syncingScroll = true;
+  tableScroll.scrollLeft = floatingScrollbar.scrollLeft;
+  syncingScroll = false;
+});
+window.addEventListener('scroll', updateFloatingScrollbar, {passive:true});
+window.addEventListener('resize', updateFloatingScrollbar);
+updateFloatingScrollbar();
+<\/script>
+</body>
+</html>
+</script>
 
 <div id="view-sublimacao" style="display:none;">
   <iframe id="sublimacao-iframe" title="Débitos Sublimação Afonso"></iframe>
@@ -2413,7 +3394,6 @@
   // ---------- Seletor entre apps (Débitos / Entrega Direta / Sublimação) ----------
   (function(){
     "use strict";
-    var ENTREGAS_URL = 'https://weesgomez.github.io/Controle-flex-entrega-direta/';
     var viewDebitos = document.getElementById('view-debitos');
     var viewEntregas = document.getElementById('view-entregas');
     var viewSublimacao = document.getElementById('view-sublimacao');
@@ -2434,7 +3414,12 @@
       hideAll();
       if(view === 'entregas'){
         viewEntregas.style.display = 'block';
-        if(!iframeLoaded){ iframe.src = ENTREGAS_URL; iframeLoaded = true; }
+        if(!iframeLoaded){
+          var entSrcEl = document.getElementById('entregas-source');
+          var entRaw = (entSrcEl.textContent || '').replace(/<\\\/script/gi, '</script');
+          iframe.srcdoc = entRaw;
+          iframeLoaded = true;
+        }
       } else if(view === 'sublimacao'){
         viewSublimacao.style.display = 'block';
         if(!subIframeLoaded){
