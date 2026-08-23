@@ -435,7 +435,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard · Ocorrências de Entrega Direta</title>
+<title>Dashboard · Ocorrências de Entrega Direta e Flex</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"><\/script>
@@ -728,7 +728,7 @@
   <header>
     <div>
       <p class="eyebrow">Operações · Pós-venda</p>
-      <h1>Ocorrências de Entrega Direta</h1>
+      <h1>Ocorrências de Entrega Direta e Flex</h1>
       <div class="sub" id="subLine">
         <span><b>Período:</b> jun–ago / 2026</span>
       </div>
@@ -1064,7 +1064,7 @@ function buildSelectedReport(){
   let y = 40;
 
   doc.setFont('helvetica','bold'); doc.setFontSize(15);
-  doc.text('Ocorrências de Entrega Direta — Relatório selecionado', marginX, y);
+  doc.text('Ocorrências de Entrega Direta e Flex — Relatório selecionado', marginX, y);
   y += 16;
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90,90,90);
   doc.text(rows.length+' ocorrência(s) selecionada(s) · Gerado em '+new Date().toLocaleString('pt-BR'), marginX, y);
@@ -4183,6 +4183,22 @@ updateFloatingScrollbar();
   });
 
   applyHiddenState();
+
+  // ---------- Tema claro/escuro ----------
+  (function(){
+    var themeBtn = document.getElementById('btn-theme-toggle');
+    if(!themeBtn) return;
+    themeBtn.addEventListener('click', function(){
+      var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      if(isLight){
+        document.documentElement.removeAttribute('data-theme');
+        themeBtn.textContent = '☀️ Claro';
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+        themeBtn.textContent = '🌙 Escuro';
+      }
+    });
+  })();
 
   // ---------- Configuração da chave Pix (modal) ----------
   function openPixModal(){
