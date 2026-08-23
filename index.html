@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Controle de Débitos — Quinzenas</title>
+<title>Controle de Débitos - Drop Dtf</title>
 <style>
   :root{
     color-scheme: dark;
@@ -228,13 +228,40 @@
   .modal-close{display:flex; justify-content:flex-end; margin-top:14px;}
   #pix-modal .auth-field{margin-bottom:14px;}
   #pix-modal .sub{margin-bottom:16px;}
+
+  /* ---- Seletor entre apps (Débitos / Entrega Direta) ---- */
+  /* Só aparece depois que a pessoa entra (login ou modo local) — nunca na tela de login. */
+  #app-switcher{display:none;}
+  body.app-unlocked{padding-top:46px;}
+  body.app-unlocked #app-switcher{
+    display:flex; position:fixed; top:0; left:0; right:0; z-index:300; height:46px;
+    align-items:stretch; background:rgba(8,9,12,.92);
+    backdrop-filter:blur(12px) saturate(140%); border-bottom:1px solid var(--line);
+  }
+  #app-switcher .app-switch-btn{
+    flex:none; height:100%; border:none; border-radius:0; background:transparent;
+    color:var(--ink-mute); font-weight:700; font-size:12.5px; padding:0 18px;
+    display:flex; align-items:center; gap:7px; cursor:pointer; transition:background .15s, color .15s;
+  }
+  #app-switcher .app-switch-btn:hover{color:var(--ink); background:rgba(255,255,255,.04);}
+  #app-switcher .app-switch-btn.active{color:var(--ink); background:var(--panel-2); box-shadow:inset 0 -2px 0 var(--accent);}
+  body.app-unlocked header{top:46px;}
+  #view-entregas{position:fixed; top:0; left:0; right:0; bottom:0;}
+  body.app-unlocked #view-entregas{top:46px;}
+  #view-entregas iframe{width:100%; height:100%; border:0; display:block; background:#fff;}
 </style>
 </head>
 <body>
 
+<div id="app-switcher">
+  <button type="button" class="app-switch-btn active" data-view="debitos">💰 Controle de Débitos</button>
+  <button type="button" class="app-switch-btn" data-view="entregas">🚚 Entrega Direta e Flex</button>
+</div>
+
+<div id="view-debitos">
 <header>
   <div>
-    <h1>Controle de Débitos — por Quinzena</h1>
+    <h1>Controle de Débitos - Drop Dtf</h1>
     <p>Baseado na última quinzena registrada (1ª quinzena de Julho/2026). As próximas quinzenas replicam automaticamente a mesma estrutura e fórmulas.</p>
   </div>
   <div class="toolbar">
@@ -379,9 +406,45 @@
   <div class="foot-actions"></div>
   <p class="hint">Os dados ficam só nesta página. Use "Salvar cópia do app" sempre que quiser guardar o progresso — isso baixa um novo arquivo .html já com os dados atuais dentro, pronto para reabrir depois.</p>
 </main>
+</div>
+
+<div id="view-entregas" style="display:none;">
+  <iframe id="entregas-iframe" title="Entrega Direta e Flex" src="about:blank"></iframe>
+</div>
 
 <script id="app-data" type="application/json">SEED_PLACEHOLDER</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  // ---------- Seletor entre apps (Débitos / Entrega Direta) ----------
+  (function(){
+    "use strict";
+    var ENTREGAS_URL = 'https://weesgomez.github.io/Controle-flex-entrega-direta/';
+    var viewDebitos = document.getElementById('view-debitos');
+    var viewEntregas = document.getElementById('view-entregas');
+    var iframe = document.getElementById('entregas-iframe');
+    var btns = document.querySelectorAll('#app-switcher .app-switch-btn');
+    var iframeLoaded = false;
+
+    function switchTo(view){
+      btns.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-view')===view); });
+      if(view === 'entregas'){
+        viewDebitos.style.display = 'none';
+        viewEntregas.style.display = 'block';
+        if(!iframeLoaded){ iframe.src = ENTREGAS_URL; iframeLoaded = true; }
+      } else {
+        viewEntregas.style.display = 'none';
+        viewDebitos.style.display = '';
+      }
+    }
+
+    btns.forEach(function(btn){
+      btn.addEventListener('click', function(){ switchTo(btn.getAttribute('data-view')); });
+    });
+
+    // Garante que uma cópia salva do app sempre reabra na tela de Débitos.
+    window.__resetAppSwitcherForSave = function(){ switchTo('debitos'); };
+  })();
+</script>
 <script>
 (function(){
   "use strict";
@@ -1461,6 +1524,7 @@
   });
 
   document.getElementById('btn-save-html').addEventListener('click', function(){
+    if(window.__resetAppSwitcherForSave) window.__resetAppSwitcherForSave();
     document.getElementById('app-data').textContent = JSON.stringify(state);
     var html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
     downloadBlob(html, 'controle-debitos-quinzenas.html', 'text/html');
@@ -1502,10 +1566,12 @@
   function showAuthScreen(){
     document.getElementById('auth-screen').classList.remove('hidden');
     document.getElementById('main-app').classList.remove('ready');
+    document.body.classList.remove('app-unlocked');
   }
   function hideAuthScreen(){
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('main-app').classList.add('ready');
+    document.body.classList.add('app-unlocked');
   }
 
   function showAuthForm(which){
