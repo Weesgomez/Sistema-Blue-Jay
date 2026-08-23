@@ -21,6 +21,20 @@
     --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 20px 40px -22px rgba(0,0,0,.7);
     --font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
+  :root[data-theme="light"]{
+    color-scheme: light;
+    --bg:#EEF1F8;
+    --bg-radial: radial-gradient(1200px 560px at 15% -12%, rgba(59,130,246,.07), transparent 60%),
+                 radial-gradient(900px 480px at 100% 0%, rgba(34,211,238,.05), transparent 55%);
+    --panel:#FFFFFF; --panel-2:#F7F8FC; --panel-3:#EDEFF6;
+    --line:rgba(23,27,46,.08); --line-strong:rgba(23,27,46,.16);
+    --ink:#171B2E; --ink-soft:#5B6178; --ink-mute:#8890A6;
+    --accent:#2F5597; --accent-2:#0891b2; --accent-soft:rgba(47,85,151,.10);
+    --accent-glow:rgba(47,85,151,.30);
+    --ok:#1E9E5B; --ok-bg:rgba(30,158,91,.12);
+    --bad:#DA4453; --bad-bg:rgba(218,68,83,.12);
+    --shadow: 0 1px 2px rgba(23,27,46,.04), 0 8px 24px -12px rgba(23,27,46,.12);
+  }
   *{box-sizing:border-box;}
   body{
     margin:0; font-family:var(--font);
@@ -270,6 +284,7 @@
   </div>
   <div class="toolbar">
     <span class="save-status" id="save-status"><span class="dot"></span><span id="save-status-text">—</span></span>
+    <button class="ghost icon-btn" id="btn-theme-toggle" title="Alternar tema claro/escuro">☀️ Claro</button>
     <button class="ghost icon-btn" id="btn-history" title="Ver versões salvas anteriormente">🕓 Histórico</button>
     <button class="ghost icon-btn" id="btn-toggle-privacy" title="Borrar/mostrar os valores em R$">🙈 Ocultar valores</button>
     <button class="ghost icon-btn" id="btn-set-key" title="Definir ou alterar a chave usada para revelar os valores">🔑 Chave</button>
@@ -422,41 +437,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard · Ocorrências de Entrega Direta</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"><\/script>
 <style>
   :root{
     /* dark theme is the default */
-    --bg: #0E1320;
-    --surface: #171D2E;
-    --surface-2: #1F2740;
-    --border: #2B3350;
-    --ink: #E8EBF7;
-    --ink-soft: #97A0BF;
-    --heading: #EEF2FF;
-    --navy: #5D7FD9;
-    --indigo: #8AA0FF;
-    --blue: #4C7CDB;
-    --green: #34C97C;
-    --green-soft: #163629;
-    --red: #F0596A;
-    --red-soft: #3A1C22;
-    --orange: #E2A03F;
-    --orange-soft: #3A2C16;
-    --purple: #A56AD1;
-    --purple-soft: #2E2140;
+    --bg: #08090c;
+    --surface: #131519;
+    --surface-2: #191c22;
+    --border: #1f232b;
+    --ink: #eef1f7;
+    --ink-soft: #9aa2b1;
+    --heading: #eef1f7;
+    --navy: #3b82f6;
+    --indigo: #60a5fa;
+    --blue: #3b82f6;
+    --green: #22c55e;
+    --green-soft: rgba(34,197,94,.13);
+    --red: #f43f5e;
+    --red-soft: rgba(244,63,94,.13);
+    --orange: #f59e0b;
+    --orange-soft: rgba(245,158,11,.13);
+    --purple: #22d3ee;
+    --purple-soft: rgba(34,211,238,.13);
     --coral: #F0906F;
     --coral-soft: #3A231C;
-    --mint: #34C97C;
-    --mint-soft: #16332A;
-    --skyline: #6C9BFF;
-    --sky-soft: #182741;
+    --mint: #22c55e;
+    --mint-soft: rgba(34,197,94,.13);
+    --skyline: #3b82f6;
+    --sky-soft: rgba(59,130,246,.13);
     --black-chip: #2E3038;
-    --shadow: 0 1px 2px rgba(0,0,0,.25), 0 8px 24px -12px rgba(0,0,0,.5);
-    --glow-1: #1B2440;
-    --glow-2: #16281F;
-    --radius: 18px;
-    --radius-sm: 12px;
+    --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 20px 40px -22px rgba(0,0,0,.7);
+    --glow-1: #1c2338;
+    --glow-2: #142229;
+    --radius: 14px;
+    --radius-sm: 9px;
     --radius-pill: 999px;
   }
   html[data-theme="light"]{
@@ -466,9 +481,9 @@
     --border: #E4E7F1;
     --ink: #171B2E;
     --ink-soft: #5B6178;
-    --heading: #1F2A44;
-    --navy: #1F2A44;
-    --indigo: #3E4E8E;
+    --heading: #171B2E;
+    --navy: #2F5597;
+    --indigo: #1d4ed8;
     --blue: #2F5597;
     --green: #1E9E5B;
     --green-soft: #E5F7ED;
@@ -476,18 +491,18 @@
     --red-soft: #FDEAEC;
     --orange: #C97A1E;
     --orange-soft: #FDF1E1;
-    --purple: #8E44AD;
-    --purple-soft: #F3E8F8;
+    --purple: #0891b2;
+    --purple-soft: #E1F3F6;
     --coral: #E2725B;
     --coral-soft: #FBEAE6;
-    --mint: #2E9E5B;
+    --mint: #1E9E5B;
     --mint-soft: #E1F3E8;
-    --skyline: #3E7BFA;
+    --skyline: #2F5597;
     --sky-soft: #E8F0FF;
     --black-chip: #2E3038;
     --shadow: 0 1px 2px rgba(23,27,46,.04), 0 8px 24px -12px rgba(23,27,46,.12);
     --glow-1: #E4E9FB;
-    --glow-2: #E9F3EE;
+    --glow-2: #E3F6F8;
   }
   *{box-sizing:border-box;}
   body{
@@ -496,7 +511,7 @@
       radial-gradient(1100px 480px at 15% -10%, var(--glow-1) 0%, transparent 60%),
       radial-gradient(900px 420px at 100% 0%, var(--glow-2) 0%, transparent 55%),
       var(--bg);
-    font-family:'Inter', system-ui, sans-serif;
+    font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,Helvetica,Arial,sans-serif;
     color:var(--ink);
     padding:32px 20px 64px;
     transition:background-color .2s ease, color .2s ease;
@@ -514,7 +529,7 @@
     color:var(--indigo); margin:0 0 10px;
   }
   h1{
-    font:800 32px/1.1 'Sora', sans-serif; margin:0 0 8px; color:var(--heading);
+    font-weight:800; font-size:32px; line-height:1.1; font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,Helvetica,Arial,sans-serif; margin:0 0 8px; color:var(--heading);
     letter-spacing:-0.01em;
   }
   .sub{color:var(--ink-soft); font-size:14.5px; display:flex; gap:16px; flex-wrap:wrap; align-items:center;}
@@ -556,7 +571,7 @@
   .kpi-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
   .kpi-label{font:600 11.5px/1 'Inter'; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-soft);}
   .kpi-icon{font-size:17px; opacity:.85;}
-  .kpi-value{font:800 30px/1 'Sora', sans-serif; color:var(--heading); letter-spacing:-0.01em;}
+  .kpi-value{font-weight:800; font-size:30px; line-height:1; font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:var(--heading); letter-spacing:-0.01em;}
   .kpi-value.small{font-size:22px;}
   .kpi-sub{font-size:12.5px; color:var(--ink-soft); margin-top:7px;}
   .kpi-sub b{color:var(--ink);}
@@ -570,7 +585,7 @@
     background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
     padding:20px 22px 14px; box-shadow:var(--shadow);
   }
-  .panel h2{font:700 15px 'Sora', sans-serif; margin:0 0 3px; color:var(--heading);}
+  .panel h2{font-weight:700; font-size:15px; font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,Helvetica,Arial,sans-serif; margin:0 0 3px; color:var(--heading);}
   .panel .desc{font-size:12.5px; color:var(--ink-soft); margin:0 0 14px;}
   .chart-box{position:relative; height:230px;}
   .chart-box.tall{height:250px;}
@@ -586,7 +601,7 @@
   /* ---------- table ---------- */
   .table-panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:visible;}
   .table-head{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 22px 12px; flex-wrap:wrap;}
-  .table-head h2{font:700 15px 'Sora', sans-serif; margin:0; color:var(--heading);}
+  .table-head h2{font-weight:700; font-size:15px; font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,Helvetica,Arial,sans-serif; margin:0; color:var(--heading);}
   .table-head .desc{font-size:12.5px; color:var(--ink-soft); margin:3px 0 0;}
   .search-wrap{position:relative;}
   .search-wrap input{
@@ -1423,6 +1438,20 @@ updateFloatingScrollbar();
     --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 20px 40px -22px rgba(0,0,0,.7);
     --font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
+  :root[data-theme="light"]{
+    color-scheme: light;
+    --bg:#EEF1F8;
+    --bg-radial: radial-gradient(1200px 560px at 15% -12%, rgba(59,130,246,.07), transparent 60%),
+                 radial-gradient(900px 480px at 100% 0%, rgba(34,211,238,.05), transparent 55%);
+    --panel:#FFFFFF; --panel-2:#F7F8FC; --panel-3:#EDEFF6;
+    --line:rgba(23,27,46,.08); --line-strong:rgba(23,27,46,.16);
+    --ink:#171B2E; --ink-soft:#5B6178; --ink-mute:#8890A6;
+    --accent:#2F5597; --accent-2:#0891b2; --accent-soft:rgba(47,85,151,.10);
+    --accent-glow:rgba(47,85,151,.30);
+    --ok:#1E9E5B; --ok-bg:rgba(30,158,91,.12);
+    --bad:#DA4453; --bad-bg:rgba(218,68,83,.12);
+    --shadow: 0 1px 2px rgba(23,27,46,.04), 0 8px 24px -12px rgba(23,27,46,.12);
+  }
   *{box-sizing:border-box;}
   body{
     margin:0; font-family:var(--font);
@@ -1643,6 +1672,7 @@ updateFloatingScrollbar();
   </div>
   <div class="toolbar">
     <span class="save-status" id="save-status"><span class="dot"></span><span id="save-status-text">—</span></span>
+    <button class="ghost icon-btn" id="btn-theme-toggle" title="Alternar tema claro/escuro">☀️ Claro</button>
     <button class="ghost icon-btn" id="btn-history" title="Ver versões salvas anteriormente">🕓 Histórico</button>
     <button class="ghost icon-btn" id="btn-toggle-privacy" title="Borrar/mostrar os valores em R$">🙈 Ocultar valores</button>
     <button class="ghost icon-btn" id="btn-set-key" title="Definir ou alterar a chave usada para revelar os valores">🔑 Chave</button>
@@ -2787,6 +2817,24 @@ updateFloatingScrollbar();
   });
 
   applyHiddenState();
+
+  // ---------- Tema claro/escuro ----------
+  (function(){
+    var themeBtn = document.getElementById('btn-theme-toggle');
+    if(!themeBtn) return;
+    themeBtn.addEventListener('click', function(){
+      var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      if(isLight){
+        document.documentElement.removeAttribute('data-theme');
+        themeBtn.textContent = '☀️ Claro';
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+        themeBtn.textContent = '🌙 Escuro';
+      }
+      if(evolutionChartInstance){ evolutionChartInstance.destroy(); evolutionChartInstance = null; }
+      renderEvolutionChart();
+    });
+  })();
 
   // Ao focar num campo numérico que está com "0", seleciona o valor —
   // assim digitar já substitui, sem precisar apagar antes.
