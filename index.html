@@ -4065,7 +4065,10 @@ loadState();
       viewEstoque.style.display = 'none';
     }
 
-    function switchTo(view){
+    var LAST_TAB_KEY = 'sbj_active_tab';
+
+    function switchTo(view, persist){
+      if(persist === undefined) persist = true;
       btns.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-view')===view); });
       hideAll();
       if(view === 'entregas'){
@@ -4094,15 +4097,26 @@ loadState();
         }
       } else {
         viewDebitos.style.display = '';
+        view = 'debitos';
       }
+      if(persist){ try{ localStorage.setItem(LAST_TAB_KEY, view); }catch(e){} }
     }
 
     btns.forEach(function(btn){
       btn.addEventListener('click', function(){ switchTo(btn.getAttribute('data-view')); });
     });
 
-    // Garante que uma cópia salva do app sempre reabra na tela de Débitos.
-    window.__resetAppSwitcherForSave = function(){ switchTo('debitos'); };
+    // Garante que uma cópia salva do app sempre reabra na tela de Débitos —
+    // sem alterar a aba que a pessoa realmente estava usando (não persiste).
+    window.__resetAppSwitcherForSave = function(){ switchTo('debitos', false); };
+
+    // Ao recarregar a página, reabre na mesma aba em que a pessoa estava
+    // (em vez de sempre voltar pra Controle de Débitos).
+    window.__restoreLastTab = function(){
+      var saved;
+      try{ saved = localStorage.getItem(LAST_TAB_KEY); }catch(e){ saved = null; }
+      if(saved && saved !== 'debitos'){ switchTo(saved); }
+    };
   })();
 </script>
 <script>
@@ -5248,6 +5262,7 @@ loadState();
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('main-app').classList.add('ready');
     document.body.classList.add('app-unlocked');
+    if(window.__restoreLastTab) window.__restoreLastTab();
   }
 
   function showAuthForm(which){
