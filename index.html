@@ -627,6 +627,8 @@
   tbody tr:hover td{background:var(--surface-2);}
   tbody tr:focus-within td{background:rgba(59,130,246,.12);}
   tbody tr:focus-within td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
+  tbody tr.row-edited td{background:rgba(59,130,246,.12);}
+  tbody tr.row-edited td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
   .mono{font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--ink-soft);}
   .nd{color:#B7BBCB; font-style:italic;}
 
@@ -711,6 +713,12 @@
     border-radius:var(--radius-pill); cursor:pointer;
   }
   .seg-toggle button.active{background:var(--blue); color:#fff;}
+  .res-filter{display:inline-flex; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-pill); padding:3px; gap:2px;}
+  .res-filter button{
+    font:600 12px 'Inter'; border:none; background:transparent; color:var(--ink-soft); padding:6px 14px;
+    border-radius:var(--radius-pill); cursor:pointer; white-space:nowrap;
+  }
+  .res-filter button.active{background:var(--blue); color:#fff;}
 
   /* ---------- motivo / descrição ---------- */
   .cell-input.desc-input:disabled{opacity:.35; cursor:not-allowed; background:transparent;}
@@ -781,6 +789,11 @@
       <div>
         <h2>Análise detalhada</h2>
         <p class="desc">Clique em um chip para reclassificar — os cartões acima recalculam na hora.</p>
+      </div>
+      <div class="res-filter" id="resFilter">
+        <button type="button" data-res="todos" class="active">Todos</button>
+        <button type="button" data-res="Resolvido">Resolvidos</button>
+        <button type="button" data-res="Não Resolvido">Não resolvidos</button>
       </div>
       <div class="search-wrap"><input type="text" id="searchBox" placeholder="Buscar pedido, status..."></div>
       <div class="head-actions">
@@ -941,6 +954,7 @@ document.addEventListener('click', (e)=>{
   if(opt){
     const field = opt.dataset.field, row = +opt.dataset.row, key = opt.dataset.key;
     DATA[row][field] = key;
+    markRowEdited(DATA[row]._uid);
     renderAll();
     scheduleSave();
     return;
@@ -987,6 +1001,7 @@ document.getElementById('tbody').addEventListener('input', (e)=>{
   }
   renderKPIs();
   renderCharts();
+  markRowEdited(DATA[row]._uid);
   scheduleSave();
 });
 // NOTE: deliberately no full renderTable() on blur/change here — rebuilding the
@@ -1293,9 +1308,22 @@ function renderCharts(){
 /* ============================================================
    TABLE
    ============================================================ */
+let resolutionFilter = 'todos';
+let lastEditedUid = null;
+
+function markRowEdited(uid){
+  lastEditedUid = uid;
+  document.querySelectorAll('#tbody tr').forEach(tr=>{
+    tr.classList.toggle('row-edited', +tr.dataset.uid === uid);
+  });
+}
+
 function renderTable(){
   const q = document.getElementById('searchBox').value.trim().toLowerCase();
   let rows = DATA.map((r,i)=>({...r, __idx:i}));
+  if(resolutionFilter !== 'todos'){
+    rows = rows.filter(r => r.resolucao === resolutionFilter);
+  }
   if(q){
     rows = rows.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q)));
   }
@@ -1309,7 +1337,7 @@ function renderTable(){
     });
   }
   document.getElementById('tbody').innerHTML = rows.map(r=>`
-    <tr data-row="${r.__idx}">
+    <tr data-row="${r.__idx}" data-uid="${r._uid}"${r._uid===lastEditedUid ? ' class="row-edited"' : ''}>
       <td><input type="checkbox" class="row-select" data-uid="${r._uid}" ${selectedUids.has(r._uid) ? 'checked' : ''}></td>
       <td>${renderChip('loja', r.loja, r.__idx)}</td>
       <td><input type="text" class="cell-input mono" data-field="codigo" data-row="${r.__idx}"
@@ -1333,6 +1361,14 @@ function renderTable(){
     </tr>`).join('');
   updateSelectionUI();
 }
+
+document.getElementById('resFilter').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-res]');
+  if(!btn) return;
+  resolutionFilter = btn.dataset.res;
+  document.querySelectorAll('#resFilter button').forEach(b=>b.classList.toggle('active', b===btn));
+  renderTable();
+});
 
 document.querySelectorAll('thead th[data-key]').forEach(th=>{
   th.addEventListener('click', ()=>{
