@@ -625,6 +625,8 @@
   thead th .arrow{opacity:.35; font-size:10px; margin-left:3px;}
   tbody td{padding:9px 10px; border-bottom:1px solid var(--border); white-space:nowrap; color:var(--ink);}
   tbody tr:hover td{background:var(--surface-2);}
+  tbody tr:focus-within td{background:rgba(59,130,246,.12);}
+  tbody tr:focus-within td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
   .mono{font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--ink-soft);}
   .nd{color:#B7BBCB; font-style:italic;}
 
@@ -739,7 +741,7 @@
     </div>
     <div class="header-right">
       <button type="button" class="theme-toggle" id="themeToggle">☀️ Claro</button>
-      <span class="pulse-live">painel ao vivo — clique nos status para simular</span>
+      <span class="pulse-live" id="saveStatus">carregando…</span>
     </div>
   </header>
 
@@ -828,6 +830,7 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"><\/script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"><\/script>
 <script>
@@ -939,6 +942,7 @@ document.addEventListener('click', (e)=>{
     const field = opt.dataset.field, row = +opt.dataset.row, key = opt.dataset.key;
     DATA[row][field] = key;
     renderAll();
+    scheduleSave();
     return;
   }
   const del = e.target.closest('.del-btn');
@@ -947,6 +951,7 @@ document.addEventListener('click', (e)=>{
     selectedUids.delete(DATA[row]._uid);
     DATA.splice(row, 1);
     renderAll();
+    scheduleSave();
     return;
   }
 });
@@ -982,6 +987,7 @@ document.getElementById('tbody').addEventListener('input', (e)=>{
   }
   renderKPIs();
   renderCharts();
+  scheduleSave();
 });
 // NOTE: deliberately no full renderTable() on blur/change here — rebuilding the
 // table while a sibling field's focus/blur is still resolving can detach the
@@ -1043,6 +1049,7 @@ document.getElementById('addRowBtn').addEventListener('click', ()=>{
   });
   renderAll();
   document.querySelector('.table-scroll').scrollTop = document.querySelector('.table-scroll').scrollHeight;
+  scheduleSave();
 });
 
 /* ============================================================
@@ -1128,13 +1135,15 @@ function computeKPIs(){
   const pct = n? resolved/n : 0;
   const withValue = DATA.filter(r=>r.valor_total!=null);
   const total = withValue.reduce((s,r)=>s+r.valor_total,0);
+  const openTotal = withValue.filter(r=>r.resolucao!=='Resolvido').reduce((s,r)=>s+r.valor_total,0);
+  const resolvedTotal = withValue.filter(r=>r.resolucao==='Resolvido').reduce((s,r)=>s+r.valor_total,0);
   const avg = withValue.length ? total/withValue.length : 0;
   const maxRow = withValue.reduce((a,b)=> (a.valor_total>b.valor_total? a : b), withValue[0]);
   const counts = {};
   STATUS_ORDER.forEach(k=>counts[k]=0);
   DATA.forEach(r=>counts[r.status]=(counts[r.status]||0)+1);
   const topStatus = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
-  return {n, resolved, notResolved, pct, total, avg, maxRow, counts, topStatus};
+  return {n, resolved, notResolved, pct, total, openTotal, resolvedTotal, avg, maxRow, counts, topStatus};
 }
 
 function renderKPIs(){
@@ -1144,7 +1153,8 @@ function renderKPIs(){
     {cls:'c-green', icon:'✅', label:'Resolvidas', value:k.resolved, sub:`<span class="good">${(k.pct*100).toFixed(1)}% do total</span>`},
     {cls:'c-red',   icon:'⚠️', label:'Não resolvidas', value:k.notResolved, sub:`<span class="warn">${((1-k.pct)*100).toFixed(1)}% do total — atenção</span>`},
     {cls:'c-blue',  icon:'🎯', label:'% de resolução', value:(k.pct*100).toFixed(1)+'%', sub:'Meta de referência: 80%'},
-    {cls:'c-navy',  icon:'💰', label:'Valor total em disputa', value:fmtBRLplain(k.total), small:true, sub:'Frete + valor do produto'},
+    {cls:'c-red',   icon:'💰', label:'Valor em aberto', value:fmtBRLplain(k.openTotal), small:true, sub:'Ocorrências ainda não resolvidas — frete + produto'},
+    {cls:'c-green', icon:'✔️', label:'Valor já resolvido', value:fmtBRLplain(k.resolvedTotal), small:true, sub:'Ocorrências já resolvidas — frete + produto'},
     {cls:'c-blue',  icon:'📊', label:'Ticket médio', value:fmtBRLplain(k.avg), small:true, sub:'Por ocorrência'},
     {cls:'c-orange',icon:'🔺', label:'Maior ocorrência', value:fmtBRLplain(k.maxRow.valor_total), small:true, sub:`Pedido <b>${k.maxRow.codigo}</b>`},
     {cls:'c-purple',icon:'🏷️', label:'Status mais frequente', value:STATUS_META[k.topStatus[0]].label, small:true, sub:`Frequência: <b>${k.topStatus[1]}</b> ocorrências`},
@@ -1352,7 +1362,91 @@ function renderAll(){
   requestAnimationFrame(updateFloatingScrollbar);
 }
 renderLegend();
-renderAll();
+
+/* ============================================================
+   NUVEM (Supabase) — salvamento automático, sem login.
+   Painel compartilhado: qualquer pessoa que acesse esse dashboard pelo
+   sistema principal vê e edita os mesmos dados (não tem conta por pessoa).
+   ============================================================ */
+const SUPABASE_URL = 'https://rvmbsqrmrkhegdophfpu.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_87-6Lrr7F59aAl1KT_AV2w_WLl6C9of';
+const STATE_TABLE = 'entregas_state';
+const HISTORY_TABLE = 'entregas_state_history';
+let supabaseClient = null;
+if(window.supabase && typeof window.supabase.createClient === 'function'){
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
+
+let saveTimer = null;
+let lastSavedSnapshot = null;
+
+function setSaveStatus(text, ok){
+  const el = document.getElementById('saveStatus');
+  if(!el) return;
+  el.textContent = text;
+  el.style.color = ok === false ? 'var(--red)' : 'var(--green)';
+  el.style.background = ok === false ? 'var(--red-soft)' : 'var(--green-soft)';
+}
+
+function scheduleSave(){
+  if(!supabaseClient) return;
+  setSaveStatus('salvando…');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 900);
+}
+
+function doSave(){
+  if(!supabaseClient) return;
+  const snapshot = JSON.stringify(DATA);
+  if(snapshot === lastSavedSnapshot){ setSaveStatus('salvo na nuvem'); return; }
+  const payload = JSON.parse(snapshot);
+  return supabaseClient.from(STATE_TABLE)
+    .upsert({ id: 1, data: payload, updated_at: new Date().toISOString() })
+    .then(function(res){
+      if(res.error) throw res.error;
+      return supabaseClient.from(HISTORY_TABLE).insert({ data: payload });
+    })
+    .then(function(res){
+      if(res && res.error) throw res.error;
+      lastSavedSnapshot = snapshot;
+      setSaveStatus('salvo na nuvem');
+    })
+    .catch(function(err){
+      console.error('Falha ao salvar na nuvem:', err);
+      setSaveStatus('erro ao salvar (veja o console)', false);
+    });
+}
+
+function loadFromCloudThenRender(){
+  if(!supabaseClient){
+    renderAll();
+    setSaveStatus('modo local (sem nuvem)', false);
+    return;
+  }
+  setSaveStatus('carregando…');
+  supabaseClient.from(STATE_TABLE).select('data').eq('id', 1).maybeSingle()
+    .then(function(res){
+      if(res.error) throw res.error;
+      const row = res.data;
+      if(row && row.data && Array.isArray(row.data) && row.data.length){
+        DATA = row.data;
+        uidCounter = DATA.reduce(function(max, r){ return Math.max(max, (r._uid||0)+1); }, 0);
+        lastSavedSnapshot = JSON.stringify(DATA);
+      } else {
+        // primeira vez: ainda não existe nada salvo — manda os dados atuais como semente inicial
+        return doSave();
+      }
+    })
+    .catch(function(err){
+      console.warn('Não foi possível carregar da nuvem, mantendo dados locais.', err);
+    })
+    .then(function(){
+      renderAll();
+      setSaveStatus('salvo na nuvem');
+    });
+}
+
+loadFromCloudThenRender();
 
 /* ============================================================
    THEME TOGGLE (dark by default)
