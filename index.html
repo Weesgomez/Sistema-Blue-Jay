@@ -3544,6 +3544,7 @@ updateFloatingScrollbar();
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Controle de Estoque</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/JsBarcode/3.11.5/JsBarcode.all.min.js"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"><\/script>
 <style>
   :root {
     color-scheme: dark;
@@ -3837,30 +3838,85 @@ updateFloatingScrollbar();
 
 <script>
 let state = { items: [], history: [], settings: { labelW: 50, labelH: 30 } };
-const STORAGE_KEY = 'estoque-pecas-state';
+
+// ---------- Nuvem (Supabase) — salvamento automático, sem login.
+// Painel compartilhado: mesmo padrão do Entrega Direta e Flex — qualquer
+// pessoa que acesse pelo sistema principal vê e edita os mesmos dados.
+const SUPABASE_URL = 'https://rvmbsqrmrkhegdophfpu.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_87-6Lrr7F59aAl1KT_AV2w_WLl6C9of';
+const STATE_TABLE = 'estoque_state';
+const HISTORY_TABLE = 'estoque_state_history';
+let supabaseClient = null;
+if (window.supabase && typeof window.supabase.createClient === 'function') {
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
+
+let saveTimer = null;
+let lastSavedSnapshot = null;
+
+function setSaveStatus(text) {
+  const el = document.getElementById('statusTag');
+  if (el) el.textContent = text;
+}
+
+function scheduleSave() {
+  if (!supabaseClient) return;
+  setSaveStatus('salvando…');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 900);
+}
+
+async function doSave() {
+  if (!supabaseClient) return;
+  const snapshot = JSON.stringify(state);
+  if (snapshot === lastSavedSnapshot) { setSaveStatus('salvo na nuvem'); return; }
+  const payload = JSON.parse(snapshot);
+  try {
+    const res = await supabaseClient.from(STATE_TABLE)
+      .upsert({ id: 1, data: payload, updated_at: new Date().toISOString() });
+    if (res.error) throw res.error;
+    const histRes = await supabaseClient.from(HISTORY_TABLE).insert({ data: payload });
+    if (histRes.error) throw histRes.error;
+    lastSavedSnapshot = snapshot;
+    setSaveStatus('salvo na nuvem');
+  } catch (e) {
+    console.error('Falha ao salvar na nuvem:', e);
+    setSaveStatus('erro ao salvar (veja o console)');
+  }
+}
 
 async function loadState() {
+  if (!supabaseClient) {
+    setSaveStatus('modo local (sem nuvem)');
+    document.getElementById('labelW').value = state.settings.labelW;
+    document.getElementById('labelH').value = state.settings.labelH;
+    render();
+    return;
+  }
+  setSaveStatus('carregando…');
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      state = JSON.parse(raw);
+    const res = await supabaseClient.from(STATE_TABLE).select('data').eq('id', 1).maybeSingle();
+    if (res.error) throw res.error;
+    const row = res.data;
+    if (row && row.data && Array.isArray(row.data.items)) {
+      state = row.data;
       if (!state.settings) state.settings = { labelW: 50, labelH: 30 };
+      lastSavedSnapshot = JSON.stringify(state);
+    } else {
+      // primeira vez: ainda não existe nada salvo — manda o estado atual como semente inicial
+      await doSave();
     }
   } catch (e) {
-    // no data yet
+    console.warn('Não foi possível carregar da nuvem, mantendo dados locais.', e);
   }
   document.getElementById('labelW').value = state.settings.labelW;
   document.getElementById('labelH').value = state.settings.labelH;
   render();
-  document.getElementById('statusTag').textContent = 'salvo neste navegador';
+  setSaveStatus('sincronizado');
 }
 
-async function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) {
-    document.getElementById('statusTag').textContent = 'erro ao salvar';
-  }
+function persist() {
+  scheduleSave();
 }
 
 function addItem(ev) {
