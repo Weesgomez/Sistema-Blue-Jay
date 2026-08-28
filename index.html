@@ -624,6 +624,19 @@
   thead th:hover{color:var(--navy);}
   thead th .arrow{opacity:.35; font-size:10px; margin-left:3px;}
   tbody td{padding:9px 10px; border-bottom:1px solid var(--border); white-space:nowrap; color:var(--ink);}
+  /* Colunas fixas à esquerda (checkbox + Loja + Código do pedido) — ficam visíveis
+     mesmo rolando a tabela pros lados, pra nunca perder de vista qual pedido é. */
+  thead th:nth-child(1), tbody td:nth-child(1){ width:34px; }
+  thead th:nth-child(2), tbody td:nth-child(2){ width:112px; }
+  thead th:nth-child(1), tbody td:nth-child(1),
+  thead th:nth-child(2), tbody td:nth-child(2),
+  thead th:nth-child(3), tbody td:nth-child(3){
+    position:sticky; background:var(--surface);
+  }
+  thead th:nth-child(1), tbody td:nth-child(1){ left:0; z-index:5; }
+  thead th:nth-child(2), tbody td:nth-child(2){ left:34px; z-index:5; }
+  thead th:nth-child(3), tbody td:nth-child(3){ left:146px; z-index:5; box-shadow:2px 0 6px -2px rgba(0,0,0,.35); }
+  thead th:nth-child(1), thead th:nth-child(2), thead th:nth-child(3){ z-index:6; }
   tbody tr:hover td{background:var(--surface-2);}
   tbody tr:focus-within td{background:rgba(59,130,246,.12);}
   tbody tr:focus-within td:first-child{box-shadow:inset 3px 0 0 var(--blue);}
@@ -1003,6 +1016,14 @@ document.getElementById('tbody').addEventListener('input', (e)=>{
   renderCharts();
   markRowEdited(DATA[row]._uid);
   scheduleSave();
+});
+// Marca a linha assim que você clica em qualquer campo dela (mesmo sem digitar ainda) —
+// garante que só uma linha fique destacada por vez, trocando na hora do clique.
+document.getElementById('tbody').addEventListener('focusin', (e)=>{
+  const tr = e.target.closest('tr[data-uid]');
+  if(!tr) return;
+  const uid = +tr.dataset.uid;
+  if(!isNaN(uid)) markRowEdited(uid);
 });
 // NOTE: deliberately no full renderTable() on blur/change here — rebuilding the
 // table while a sibling field's focus/blur is still resolving can detach the
@@ -3578,555 +3599,2554 @@ updateFloatingScrollbar();
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Controle de Estoque</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/JsBarcode/3.11.5/JsBarcode.all.min.js"><\/script>
+<title>Estoque Central — Controle de Produtos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  window.__libStatus = { jsbarcode: false, quagga: false, jsbarcodeFailed: false, quaggaFailed: false };
+  function __loadWithFallback(sources, doneKey, failKey){
+    let i = 0;
+    function tryNext(){
+      if(i >= sources.length){
+        window.__libStatus[failKey] = true;
+        if(window.__onLibsChanged) window.__onLibsChanged();
+        return;
+      }
+      const s = document.createElement('script');
+      s.src = sources[i];
+      s.onload = function(){
+        window.__libStatus[doneKey] = true;
+        if(window.__onLibsChanged) window.__onLibsChanged();
+      };
+      s.onerror = function(){ i++; tryNext(); };
+      document.head.appendChild(s);
+    }
+    tryNext();
+  }
+  __loadWithFallback([
+    'https://cdnjs.cloudflare.com/ajax/libs/JsBarcode/3.11.5/JsBarcode.all.min.js',
+    'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js',
+    'https://unpkg.com/jsbarcode@3.11.5/dist/JsBarcode.all.min.js'
+  ], 'jsbarcode', 'jsbarcodeFailed');
+  __loadWithFallback([
+    'https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js',
+    'https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js',
+    'https://unpkg.com/quagga@0.12.1/dist/quagga.min.js'
+  ], 'quagga', 'quaggaFailed');
+<\/script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"><\/script>
 <style>
-  :root {
-    color-scheme: dark;
-    --bg: #08090c;
-    --panel: #131519;
-    --panel-2: #191c22;
-    --line: #1f232b;
-    --ink: #eef1f7;
-    --ink-dim: #9aa2b1;
-    --accent: #3b82f6;
-    --accent-ink: #ffffff;
-    --danger: #f43f5e;
-    --ok: #22c55e;
-    --radius: 14px;
-    --radius-sm: 9px;
-    --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 20px 40px -22px rgba(0,0,0,.7);
-    --mono: 'JetBrains Mono', 'Courier New', monospace;
-    --sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  }
-  :root[data-theme="light"]{
+  :root{
+    --ink:#14161A;
+    --paper:#F6F6F3;
+    --panel:#FFFFFF;
+    --graphite:#20232A;
+    --graphite-2:#2E323C;
+    --amber:#3B82F6;
+    --amber-dark:#2563EB;
+    --line:#E3E1DA;
+    --muted:#6B7280;
+    --danger:#C0392B;
+    --danger-bg:#FBEAE8;
+    --danger-border:#F0C7C2;
+    --success:#2E7D53;
+    --success-bg:#E9F5EE;
+    --success-border:#C7E6D5;
+    --surface-soft:#FBFAF6;
+    --surface-soft2:#F1EFE7;
+    --surface-hover:#EFEDE6;
+    --input-bg:#FFFFFF;
+    --shadow-soft:0 8px 20px rgba(20,22,26,.06);
+    --radius:14px;
     color-scheme: light;
-    --bg: #EEF1F8;
-    --panel: #FFFFFF;
-    --panel-2: #F7F8FC;
-    --line: #E4E7F1;
-    --ink: #171B2E;
-    --ink-dim: #5B6178;
-    --accent: #2F5597;
-    --accent-ink: #ffffff;
-    --danger: #DA4453;
-    --ok: #1E9E5B;
-    --shadow: 0 1px 2px rgba(23,27,46,.04), 0 8px 24px -12px rgba(23,27,46,.12);
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    background-image: radial-gradient(1200px 560px at 15% -12%, rgba(59,130,246,.10), transparent 60%),
-                       radial-gradient(900px 480px at 100% 0%, rgba(34,211,238,.06), transparent 55%);
-    background-attachment: fixed;
-    color: var(--ink);
-    font-family: var(--sans);
-    padding: 24px;
-    min-height: 100vh;
-    transition: background-color .2s ease, color .2s ease;
+  html[data-theme="dark"]{
+    --ink:#F2F3F5;
+    --paper:#09090B;
+    --panel:#141417;
+    --graphite:#0A0A0C;
+    --graphite-2:#1D1E22;
+    --amber:#3B82F6;
+    --amber-dark:#2563EB;
+    --line:#26262B;
+    --muted:#93959E;
+    --danger:#F04438;
+    --danger-bg:#2A1416;
+    --danger-border:#4A1F22;
+    --success:#22C55E;
+    --success-bg:#0F2A1C;
+    --success-border:#1E4A2E;
+    --surface-soft:#18181C;
+    --surface-soft2:#1C1D21;
+    --surface-hover:#212226;
+    --input-bg:#18181C;
+    --shadow-soft:0 8px 24px rgba(0,0,0,.5);
+    color-scheme: dark;
   }
-  .wrap { max-width: 1080px; margin: 0 auto; }
-  header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    border-bottom: 2px solid var(--line);
-    padding-bottom: 16px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 12px;
+  html[data-theme="dark"] .dash-card.accent-amber{--accent-bg:rgba(59,130,246,.16);}
+  html[data-theme="dark"] .dash-card.accent-graphite{--accent-bg:#1D1E22;}
+  html[data-theme="dark"] .dash-card.accent-danger{--accent-bg:rgba(240,68,56,.16);}
+  html[data-theme="dark"] .dash-card.accent-success{--accent-bg:rgba(34,197,94,.16);}
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    transition:background .2s ease, color .2s ease;
   }
-  header h1 {
-    font-family: var(--sans);
-    font-weight: 650;
-    font-size: 20px;
-    letter-spacing: -0.005em;
-    margin: 0;
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .display{font-family:'Space Grotesk',sans-serif;}
+
+  /* ---------- Layout ---------- */
+  #app{display:flex; min-height:100vh;}
+  .sidebar{
+    width:220px; flex-shrink:0;
+    background:var(--graphite);
+    color:#F2F1EC;
+    display:flex; flex-direction:column;
+    padding:22px 14px;
   }
-  header .sub { color: var(--ink-dim); font-size: 13px; margin-top: 4px; }
-  .header-right { display: flex; align-items: center; gap: 8px; }
-  .tag {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--accent);
-    border: 1px solid var(--accent);
-    padding: 3px 8px;
-    border-radius: 3px;
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    padding:0 8px 20px 8px; margin-bottom:14px;
+    border-bottom:1px solid rgba(255,255,255,0.08);
   }
-  .grid { display: grid; grid-template-columns: 1.1fr 1.4fr; gap: 18px; }
-  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 18px;
-    box-shadow: var(--shadow);
+  .brand svg{flex-shrink:0;}
+  .brand-name{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; letter-spacing:0.02em; line-height:1.15;}
+  .brand-sub{font-size:10.5px; color:#9CA3AF; letter-spacing:0.08em; text-transform:uppercase; margin-top:2px;}
+
+  nav.tabs{display:flex; flex-direction:column; gap:3px;}
+  nav.tabs button{
+    all:unset; cursor:pointer;
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:8px;
+    font-size:13.5px; font-weight:500; color:#D6D8DD;
+    transition:background .15s ease, color .15s ease;
   }
-  .panel h2 {
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--ink-dim);
-    margin: 0 0 14px 0;
-    font-family: var(--mono);
+  nav.tabs button:hover{background:var(--graphite-2); color:#fff;}
+  nav.tabs button.active{background:var(--amber); color:#20232A; font-weight:600;}
+  nav.tabs button .dot{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.6;}
+
+  .sidebar-foot{margin-top:auto; padding-top:14px; border-top:1px solid rgba(255,255,255,.08);}
+  .sidebar-foot .stat{font-size:11px; color:#9CA3AF; display:flex; justify-content:space-between; padding:3px 8px;}
+  .sidebar-foot .stat b{color:#F2F1EC; font-family:'IBM Plex Mono',monospace;}
+  .sidebar-foot .backup-btns{display:flex; flex-direction:column; gap:6px; padding:8px;}
+  .sidebar-foot .backup-btns button{
+    all:unset; cursor:pointer; font-size:11.5px; color:#D6D8DD; padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,.12);
+    text-align:center;
   }
-  .scan-box {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 10px;
+  .sidebar-foot .backup-btns button:hover{background:var(--graphite-2); color:#fff;}
+
+  .theme-toggle-row{
+    display:flex; align-items:center; justify-content:space-between; padding:8px;
+    margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,.08); padding-bottom:14px;
   }
-  input, select, button {
-    font-family: var(--sans);
-    font-size: 14px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--line);
-    background: var(--panel-2);
-    color: var(--ink);
-    padding: 9px 10px;
+  .theme-toggle-row .label{font-size:11.5px; color:#D6D8DD; display:flex; align-items:center; gap:6px;}
+  .theme-switch{
+    all:unset; cursor:pointer; width:44px; height:24px; border-radius:999px; background:rgba(255,255,255,.15);
+    position:relative; flex-shrink:0; transition:background .2s ease;
   }
-  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  #scanInput {
-    flex: 1;
-    font-family: var(--mono);
-    font-size: 16px;
-    letter-spacing: 1px;
+  .theme-switch .knob{
+    position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%;
+    background:var(--amber); display:flex; align-items:center; justify-content:center; font-size:11px;
+    transition:transform .2s ease; transform:translateX(0);
   }
-  .btn {
-    cursor: pointer;
-    background: var(--accent);
-    color: var(--accent-ink);
-    border: none;
-    font-weight: 600;
+  html[data-theme="dark"] .theme-switch .knob{transform:translateX(20px);}
+  html[data-theme="dark"] .theme-switch{background:rgba(242,169,0,.25);}
+
+  main{flex:1; padding:34px 40px; max-width:1180px;}
+  .page{display:none;}
+  .page.active{display:block; animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+  h1.pagetitle{font-family:'Space Grotesk',sans-serif; font-size:26px; font-weight:700; margin:0 0 4px 0;}
+  p.pagesub{color:var(--muted); margin:0 0 26px 0; font-size:14px;}
+
+  .banner{
+    display:flex; align-items:center; gap:10px; padding:11px 16px; border-radius:8px; font-size:13px; margin-bottom:20px;
   }
-  .btn:hover { filter: brightness(1.08); }
-  .btn.secondary {
-    background: var(--panel-2);
-    color: var(--ink);
-    border: 1px solid var(--line);
+  .banner.warn{background:var(--danger-bg); color:var(--danger); border:1px solid var(--danger-border);}
+  .banner.ok{background:var(--success-bg); color:var(--success); border:1px solid var(--success-border);}
+
+  /* ---------- Cards / dashboard ---------- */
+  .grid-cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:30px;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px;}
+
+  .dash-header{
+    display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px;
+    margin-bottom:22px; padding-bottom:18px; border-bottom:1px solid var(--line);
   }
-  .btn.danger { background: var(--danger); color: #fff; }
-  .scan-feedback {
-    font-family: var(--mono);
-    font-size: 13px;
-    min-height: 18px;
-    padding-top: 2px;
+  .dash-header .greeting{font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700;}
+  .dash-header .date{color:var(--muted); font-size:13px; margin-top:3px; text-transform:capitalize;}
+  .dash-header .clock-badge{
+    display:flex; align-items:center; gap:8px; background:var(--surface-soft); border:1px solid var(--line);
+    border-radius:999px; padding:8px 14px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--muted);
   }
-  .scan-feedback.ok { color: var(--ok); }
-  .scan-feedback.err { color: var(--danger); }
-  form.new-item { display: flex; flex-direction: column; gap: 10px; }
-  form.new-item .row { display: flex; gap: 8px; }
-  form.new-item .row > * { flex: 1; }
-  label.small { font-size: 11px; color: var(--ink-dim); margin-bottom: 3px; display: block; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
-  th { color: var(--ink-dim); font-family: var(--mono); font-size: 11px; text-transform: uppercase; }
-  tr.low td { color: var(--danger); }
-  .qty-pill {
-    font-family: var(--mono);
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: var(--panel-2);
-    display: inline-block;
+
+  .dash-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px 20px;
+    display:flex; flex-direction:column; gap:10px; position:relative; overflow:hidden;
+    transition:transform .15s ease, box-shadow .15s ease;
   }
-  tr.low .qty-pill { background: rgba(244,63,94,0.15); }
-  .item-actions { display: flex; gap: 6px; }
-  .item-actions button { padding: 4px 8px; font-size: 12px; }
-  .history-list { max-height: 300px; overflow-y: auto; font-family: var(--mono); font-size: 12px; }
-  .history-row {
-    display: flex; justify-content: space-between;
-    padding: 6px 0; border-bottom: 1px solid var(--line);
-    color: var(--ink-dim);
+  .dash-card:hover{transform:translateY(-2px); box-shadow:var(--shadow-soft);}
+  .dash-card::before{
+    content:''; position:absolute; top:0; left:0; width:100%; height:3px; background:var(--accent, var(--amber));
   }
-  .history-row .entrada { color: var(--ok); }
-  .history-row .saida { color: var(--danger); }
-  .tabs { display: flex; gap: 4px; margin-bottom: 14px; }
-  .tabs button {
-    flex: 1;
-    background: var(--panel-2);
-    color: var(--ink-dim);
-    border: 1px solid var(--line);
+  .dash-card .icon-circle{
+    width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+    font-size:17px; background:var(--accent-bg, var(--surface-soft2)); flex-shrink:0;
   }
-  .tabs button.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-  .empty { color: var(--ink-dim); font-size: 13px; padding: 20px 0; text-align: center; }
-  .barcode-modal {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-    display: none; align-items: center; justify-content: center; z-index: 50;
+  .dash-card .k{font-size:11.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); font-weight:700;}
+  .dash-card .v{font-family:'Space Grotesk',sans-serif; font-size:27px; font-weight:700; line-height:1;}
+  .dash-card .v.warn{color:var(--danger);}
+  .dash-card .v.ok{color:var(--success);}
+  .dash-card.accent-amber{--accent: var(--amber); --accent-bg: #DCEAFE;}
+  .dash-card.accent-danger{--accent: var(--danger); --accent-bg: var(--danger-bg);}
+  .dash-card.accent-success{--accent: var(--success); --accent-bg: var(--success-bg);}
+  .dash-card.accent-graphite{--accent: var(--graphite); --accent-bg: #ECEDEF;}
+
+  .attention-card{background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden;}
+  .attention-card .attention-head{
+    display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--line); background:var(--surface-soft);
   }
-  .barcode-modal.open { display: flex; }
-  .barcode-card {
-    background: #fff; color: #000; border-radius: 8px; padding: 20px;
-    text-align: center; width: 300px;
+  .attention-card .attention-head h2{margin:0; font-family:'Space Grotesk',sans-serif; font-size:15.5px; font-weight:700; display:flex; align-items:center; gap:8px;}
+  .attention-card .attention-head .count-pill{
+    background:var(--danger-bg); color:var(--danger); font-weight:700; font-size:12px; padding:3px 10px; border-radius:999px;
   }
-  .barcode-card .label-name { font-family: var(--sans); font-weight: 700; font-size: 14px; margin-bottom: 6px; }
-  .barcode-card .label-controls {
-    display: flex; gap: 8px; margin-top: 14px; justify-content: center;
+  .attention-card .attention-body{padding:0;}
+  .attention-card .attention-body table{border:none; border-radius:0;}
+  .attention-card .attention-body .empty{border:none;}
+  .card .k{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:600;}
+  .card .v{font-family:'Space Grotesk',sans-serif; font-size:28px; font-weight:700; margin-top:6px;}
+  .card .v.warn{color:var(--danger);}
+  .card .v.ok{color:var(--success);}
+
+  .section-title{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px; margin:28px 0 12px 0;}
+
+  /* ---------- Table ---------- */
+  table{width:100%; border-collapse:collapse; background:var(--panel); border-radius:var(--radius); overflow:hidden; border:1px solid var(--line);}
+  thead th{
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--muted); font-weight:600; padding:11px 14px; background:var(--surface-soft); border-bottom:1px solid var(--line);
   }
-  .settings-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
-  .settings-row label { font-size: 12px; color: var(--ink-dim); }
-  .settings-row input { width: 70px; }
-  @media print {
-    body * { visibility: hidden; }
-    #printArea, #printArea * { visibility: visible; }
-    #printArea { position: absolute; top: 0; left: 0; }
+  tbody td{padding:11px 14px; font-size:13.5px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--surface-hover);}
+  .sku-chip{font-family:'IBM Plex Mono',monospace; font-size:12.5px; background:var(--surface-soft2); border:1px solid var(--line); padding:3px 8px; border-radius:6px;}
+  .qty-badge{font-family:'IBM Plex Mono',monospace; font-weight:600; padding:2px 8px; border-radius:20px; font-size:12.5px;}
+  .qty-ok{background:var(--success-bg); color:var(--success);}
+  .qty-low{background:var(--danger-bg); color:var(--danger);}
+  .qty-warn{background:#FDF3DC; color:var(--amber-dark);}
+  .move-badge{font-family:'IBM Plex Mono',monospace; font-weight:600; padding:2px 8px; border-radius:20px; font-size:11.5px;}
+  .move-in{background:var(--success-bg); color:var(--success);}
+  .move-out{background:var(--danger-bg); color:var(--danger);}
+  .move-miss{background:var(--surface-soft2); color:var(--muted);}
+  .row-actions{display:flex; gap:6px;}
+  .icon-btn{
+    all:unset; cursor:pointer; width:28px; height:28px; display:flex; align-items:center; justify-content:center;
+    border-radius:6px; color:var(--muted); border:1px solid transparent;
+  }
+  .icon-btn:hover{background:var(--surface-hover); color:var(--ink);}
+  .icon-btn.danger:hover{background:var(--danger-bg); color:var(--danger);}
+
+  .empty{padding:50px 20px; text-align:center; color:var(--muted); font-size:13.5px;}
+  .empty svg{margin-bottom:10px; opacity:.5;}
+
+  /* ---------- Forms ---------- */
+  .toolbar{display:flex; gap:10px; margin-bottom:18px; align-items:center; flex-wrap:wrap;}
+  input[type=text], input[type=number], select, textarea{
+    font-family:'Inter',sans-serif; font-size:13.5px; padding:9px 12px;
+    border:1px solid var(--line); border-radius:8px; background:var(--input-bg); color:var(--ink);
+    outline:none; transition:border-color .15s ease;
+  }
+  input:focus, select:focus, textarea:focus{border-color:var(--amber-dark);}
+  .search-box{flex:1; min-width:200px; position:relative;}
+  .search-box input{width:100%; padding-left:34px;}
+  .search-box svg{position:absolute; left:11px; top:50%; transform:translateY(-50%); opacity:.45;}
+
+  .btn{
+    all:unset; cursor:pointer; font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px;
+    padding:9px 16px; border-radius:8px; display:inline-flex; align-items:center; gap:7px;
+    transition:transform .1s ease, background .15s ease;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn-primary{background:var(--amber); color:#20232A;}
+  .btn-primary:hover{background:var(--amber-dark); color:#fff;}
+  .btn-ghost{background:transparent; color:var(--ink); border:1px solid var(--line);}
+  .btn-ghost:hover{background:var(--surface-hover);}
+  .btn-dark{background:var(--graphite); color:#fff;}
+  .btn-dark:hover{background:var(--graphite-2);}
+
+  .form-card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:26px; max-width:720px;}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .form-grid .full{grid-column:1/-1;}
+  .field label{display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em;}
+  .field{display:flex; flex-direction:column;}
+  .field input, .field select, .field textarea{width:100%;}
+  .sku-row{display:flex; gap:8px;}
+  .sku-row input{flex:1;}
+  .hint{font-size:11.5px; color:var(--muted); margin-top:5px;}
+  .form-actions{display:flex; gap:10px; margin-top:22px; padding-top:18px; border-top:1px solid var(--line);}
+
+  /* ---------- Etiquetas ---------- */
+  .label-layout{display:grid; grid-template-columns:340px 1fr; gap:26px; align-items:start;}
+  .label-config{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:22px;}
+  .label-config .field{margin-bottom:14px;}
+  .dim-row{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .preset-row{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;}
+  .preset-chip{
+    all:unset; cursor:pointer; font-size:11px; padding:5px 9px; border-radius:6px;
+    border:1px solid var(--line); color:var(--muted); font-family:'IBM Plex Mono',monospace;
+  }
+  .preset-chip:hover{border-color:var(--amber-dark); color:var(--ink);}
+
+  .label-preview-area{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:26px; min-height:340px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;}
+  .label-box{
+    background:#fff; border:1.5px dashed #B8B4A8; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:6px; gap:2px; overflow:hidden;
+  }
+  .label-box .lname{font-weight:700; font-size:11px; text-align:center; line-height:1.15; padding:0 4px;}
+  .label-box .lprice{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:11px;}
+  .label-box svg{max-width:100%;}
+  .label-box .lsku{font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.03em; color:#333;}
+  .no-product-msg{color:var(--muted); font-size:13.5px; text-align:center;}
+
+  .copies-row{display:flex; align-items:center; gap:10px; margin-top:4px;}
+  .stepper{display:flex; align-items:center; border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+  .stepper button{all:unset; cursor:pointer; padding:7px 12px; color:var(--muted);}
+  .stepper button:hover{background:var(--surface-hover);}
+  .stepper input{border:none; width:50px; text-align:center; padding:7px 0;}
+
+  /* ---------- Leitor / Scanner ---------- */
+  .scanner-layout{display:grid; grid-template-columns:380px 1fr; gap:26px; align-items:start;}
+  .scanner-panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:24px;}
+  .mode-toggle{display:flex; gap:8px; margin-bottom:16px;}
+  .mode-toggle button{
+    all:unset; cursor:pointer; flex:1; text-align:center; padding:11px; border-radius:8px; border:1.5px solid var(--line); font-weight:600; font-size:13.5px;
+  }
+  .mode-toggle button.sel-in{background:var(--success-bg); border-color:var(--success); color:var(--success);}
+  .mode-toggle button.sel-out{background:var(--danger-bg); border-color:var(--danger); color:var(--danger);}
+  .mode-toggle button.toggle-sel{background:var(--amber); border-color:var(--amber-dark); color:#20232A;}
+  #scan-input{
+    width:100%; font-family:'IBM Plex Mono',monospace; font-size:16px; padding:14px; text-align:center;
+    border:2px solid var(--amber); border-radius:10px; letter-spacing:.03em;
+  }
+  #scan-input.flash-ok{background:var(--success-bg); border-color:var(--success);}
+  #scan-input.flash-err{background:var(--danger-bg); border-color:var(--danger);}
+  .scan-result{margin-top:16px; padding:14px; border-radius:10px; border:1px solid var(--line); min-height:70px; display:flex; align-items:center; gap:12px;}
+  .scan-result .icon-circle{width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:18px;}
+  .scan-result.state-ok{background:var(--success-bg); border-color:var(--success-border);}
+  .scan-result.state-ok .icon-circle{background:var(--success); color:#fff;}
+  .scan-result.state-err{background:var(--danger-bg); border-color:var(--danger-border);}
+  .scan-result.state-err .icon-circle{background:var(--danger); color:#fff;}
+  .scan-result.state-idle{color:var(--muted); font-size:13px;}
+  .scan-result .r-title{font-weight:700; font-size:14px;}
+  .scan-result .r-sub{font-size:12px; color:var(--muted); margin-top:1px;}
+  .camera-box{margin-top:16px;}
+  #camera-preview{width:100%; border-radius:10px; overflow:hidden; background:#000; display:none; position:relative;}
+  #camera-preview video, #camera-preview canvas{width:100%; display:block;}
+  .scan-log-wrap{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;}
+
+  /* ---------- Modal ---------- */
+  .modal-backdrop{position:fixed; inset:0; background:rgba(20,22,26,.5); display:none; align-items:center; justify-content:center; z-index:50;}
+  .modal-backdrop.open{display:flex;}
+  .modal{background:var(--panel); color:var(--ink); border-radius:12px; padding:26px; width:360px; box-shadow:0 20px 60px rgba(0,0,0,.25);}
+  .modal h3{margin:0 0 4px 0; font-family:'Space Grotesk',sans-serif;}
+  .modal p.sub{color:var(--muted); font-size:13px; margin:0 0 18px 0;}
+  .adjust-toggle{display:flex; gap:8px; margin-bottom:14px;}
+  .adjust-toggle button{
+    all:unset; cursor:pointer; flex:1; text-align:center; padding:9px; border-radius:8px; border:1px solid var(--line); font-weight:600; font-size:13px;
+  }
+  .adjust-toggle button.sel-in{background:var(--success-bg); border-color:var(--success); color:var(--success);}
+  .adjust-toggle button.sel-out{background:var(--danger-bg); border-color:var(--danger); color:var(--danger);}
+  .modal .form-actions{border-top:none; padding-top:14px; margin-top:6px;}
+
+  .toast{
+    position:fixed; bottom:24px; right:24px; background:var(--graphite); color:#fff; padding:12px 18px;
+    border-radius:8px; font-size:13.5px; display:flex; align-items:center; gap:8px; z-index:80;
+    transform:translateY(20px); opacity:0; transition:all .25s ease; pointer-events:none; max-width:320px;
+  }
+  .toast.show{transform:translateY(0); opacity:1;}
+
+  /* ---------- Print ---------- */
+  #print-area{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #print-area, #print-area *{visibility:visible;}
+    #print-area{display:block !important; position:absolute; top:0; left:0;}
+    .print-label{page-break-after:always; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+    .print-label:last-child{page-break-after:auto;}
+  }
+
+  @media (max-width:880px){
+    #app{flex-direction:column;}
+    .sidebar{width:100%; flex-direction:row; align-items:center; padding:12px 16px; overflow-x:auto;}
+    .brand{border:none; padding:0; margin:0; margin-right:14px;}
+    nav.tabs{flex-direction:row;}
+    .sidebar-foot{display:none;}
+    main{padding:22px 18px;}
+    .label-layout, .scanner-layout{grid-template-columns:1fr;}
+    .form-grid{grid-template-columns:1fr;}
   }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <h1>Controle de Estoque</h1>
-      <div class="sub">Peças em branco, por tipo + tamanho — separado do estoque de estampas</div>
-    </div>
-    <div class="header-right">
-      <button class="btn secondary" id="btn-theme-toggle" title="Alternar tema claro/escuro">☀️ Claro</button>
-      <span class="tag" id="statusTag">carregando…</span>
-    </div>
-  </header>
 
-  <div class="scan-box panel" style="margin-bottom:18px; display:flex; align-items:center;">
-    <input id="scanInput" placeholder="Bipar código de barras aqui e apertar Enter…" autofocus>
-    <button class="btn" onclick="processScan()">Dar baixa</button>
-  </div>
-  <div class="scan-feedback" id="scanFeedback"></div>
-
-  <div class="grid" style="margin-top:16px;">
-    <div class="panel">
-      <h2>Cadastrar novo item</h2>
-      <form class="new-item" onsubmit="return addItem(event)">
-        <div class="row">
-          <div>
-            <label class="small">Tipo de peça</label>
-            <input id="fName" placeholder="Ex: Regata Oversized" required>
-          </div>
-          <div>
-            <label class="small">Tamanho</label>
-            <input id="fSize" placeholder="Ex: P, M, G, GG" required>
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label class="small">SKU (código único)</label>
-            <input id="fSku" placeholder="Ex: REG-OVER-P" required>
-          </div>
-          <div>
-            <label class="small">Qtd inicial</label>
-            <input id="fQty" type="number" min="0" value="0" required>
-          </div>
-          <div>
-            <label class="small">Estoque mínimo</label>
-            <input id="fMin" type="number" min="0" value="5" required>
-          </div>
-        </div>
-        <button class="btn" type="submit">Cadastrar item</button>
-      </form>
-
-      <div style="margin-top:20px;">
-        <h2>Configuração da etiqueta</h2>
-        <div class="settings-row">
-          <label>Largura (mm)</label>
-          <input id="labelW" type="number" value="50" onchange="saveSettings()">
-          <label>Altura (mm)</label>
-          <input id="labelH" type="number" value="30" onchange="saveSettings()">
-        </div>
+<div id="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect width="26" height="26" rx="6" fill="#F2A900"/><rect x="6" y="7" width="1.6" height="12" fill="#20232A"/><rect x="9" y="7" width="1" height="12" fill="#20232A"/><rect x="11.4" y="7" width="2.2" height="12" fill="#20232A"/><rect x="15" y="7" width="1" height="12" fill="#20232A"/><rect x="17" y="7" width="1.6" height="12" fill="#20232A"/></svg>
+      <div>
+        <div class="brand-name">Estoque Central</div>
+        <div class="brand-sub">Controle de SKU</div>
       </div>
     </div>
-
-    <div class="panel">
-      <div class="tabs">
-        <button id="tabItens" class="active" onclick="switchTab('itens')">Itens em estoque</button>
-        <button id="tabHist" onclick="switchTab('hist')">Histórico</button>
+    <nav class="tabs">
+      <button data-page="dashboard" class="active"><span class="dot"></span>Painel</button>
+      <button data-page="produtos"><span class="dot"></span>Produtos</button>
+      <button data-page="novo"><span class="dot"></span>Novo produto</button>
+      <button data-page="movimentar"><span class="dot"></span>Movimentar</button>
+      <button data-page="reposicao"><span class="dot"></span>Reposição</button>
+      <button data-page="inventario"><span class="dot"></span>Inventário</button>
+      <button data-page="historico"><span class="dot"></span>Histórico</button>
+      <button data-page="etiquetas"><span class="dot"></span>Etiquetas</button>
+      <button data-page="leitor"><span class="dot"></span>Leitor (bipar)</button>
+      <button data-page="config"><span class="dot"></span>Configurações</button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="theme-toggle-row">
+        <span class="label">🌙 Tema escuro</span>
+        <button type="button" class="theme-switch" id="btn-theme-toggle" title="Alternar entre claro e escuro">
+          <span class="knob" id="theme-knob">☀️</span>
+        </button>
       </div>
-
-      <div id="viewItens">
-        <table>
-          <thead>
-            <tr><th>Item</th><th>SKU</th><th>Qtd</th><th></th></tr>
-          </thead>
-          <tbody id="itemsBody"></tbody>
-        </table>
-        <div id="itemsEmpty" class="empty" style="display:none;">Nenhum item cadastrado ainda.</div>
+      <div class="stat"><span>Status</span><b id="sync-status">—</b></div>
+      <div class="stat"><span>SKUs cadastrados</span><b id="foot-total">0</b></div>
+      <div class="stat"><span>Itens em falta</span><b id="foot-low">0</b></div>
+      <div class="backup-btns">
+        <button id="btn-export">⬇ Exportar backup (.json)</button>
+        <button id="btn-import-trigger">⬆ Importar backup</button>
+        <input type="file" id="btn-import-file" accept="application/json" style="display:none;">
       </div>
+    </div>
+  </aside>
 
-      <div id="viewHist" style="display:none;">
-        <div class="history-list" id="historyList"></div>
-        <div id="histEmpty" class="empty" style="display:none;">Nenhuma movimentação ainda.</div>
+  <main>
+    <!-- DASHBOARD -->
+    <section class="page active" id="page-dashboard">
+      <div class="dash-header">
+        <div>
+          <div class="greeting" id="dash-greeting">Olá!</div>
+          <div class="date" id="dash-date">—</div>
+        </div>
+        <div class="clock-badge">🕒 <span id="dash-clock">--:--</span></div>
       </div>
+      <div id="storage-banner"></div>
+      <div id="libs-banner"></div>
+      <div class="grid-cards">
+        <div class="dash-card accent-graphite">
+          <div class="icon-circle">📦</div>
+          <div class="k">Total de peças</div>
+          <div class="v" id="d-units">0</div>
+        </div>
+        <div class="dash-card accent-amber">
+          <div class="icon-circle">⚠️</div>
+          <div class="k">Estoque baixo</div>
+          <div class="v warn" id="d-low">0</div>
+        </div>
+        <div class="dash-card accent-danger">
+          <div class="icon-circle">🚫</div>
+          <div class="k">Sem estoque</div>
+          <div class="v warn" id="d-out">0</div>
+        </div>
+        <div class="dash-card accent-success">
+          <div class="icon-circle">📥</div>
+          <div class="k">Entradas hoje</div>
+          <div class="v ok" id="d-in-today">+0</div>
+        </div>
+        <div class="dash-card accent-danger">
+          <div class="icon-circle">📤</div>
+          <div class="k">Saídas hoje</div>
+          <div class="v warn" id="d-out-today">-0</div>
+        </div>
+        <div class="dash-card accent-amber">
+          <div class="icon-circle">💰</div>
+          <div class="k">Valor do estoque</div>
+          <div class="v" id="d-value">R$ 0,00</div>
+        </div>
+      </div>
+      <div class="attention-card">
+        <div class="attention-head">
+          <h2>🔥 Precisam de atenção</h2>
+          <span class="count-pill" id="d-attention-count">0</span>
+        </div>
+        <div class="attention-body" id="d-attention-table"></div>
+      </div>
+    </section>
+
+    <!-- MOVIMENTAR (em lote) -->
+    <section class="page" id="page-movimentar">
+      <h1 class="pagetitle">Movimentar estoque</h1>
+      <p class="pagesub">Dê entrada ou saída de várias variações do mesmo produto de uma vez.</p>
+      <div class="form-card" style="max-width:820px;">
+        <div class="field">
+          <label>Produto</label>
+          <select id="bulk-product"></select>
+        </div>
+        <div class="form-grid" style="margin-top:14px;">
+          <div class="field">
+            <label>Tipo de movimento</label>
+            <div class="mode-toggle">
+              <button type="button" id="bulk-mode-in" class="sel-in">+ Entrada</button>
+              <button type="button" id="bulk-mode-out">− Saída</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Motivo</label>
+            <select id="bulk-reason"></select>
+          </div>
+        </div>
+        <div class="section-title">Variações deste produto</div>
+        <div id="bulk-variants-table"></div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="btn-bulk-confirm">Confirmar movimentação em lote</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPOSIÇÃO -->
+    <section class="page" id="page-reposicao">
+      <h1 class="pagetitle">Reposição</h1>
+      <p class="pagesub">Itens ordenados por urgência, com sugestão de quanto repor.</p>
+      <div class="toolbar">
+        <div class="search-box">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input type="text" id="reposicao-search" placeholder="Buscar por produto, cor, tamanho...">
+        </div>
+        <select id="reposicao-filter">
+          <option value="all">Todos abaixo do ideal</option>
+          <option value="critical">Somente críticos</option>
+          <option value="below-min">Abaixo do mínimo</option>
+        </select>
+      </div>
+      <div id="reposicao-list"></div>
+    </section>
+
+    <!-- INVENTÁRIO (contagem) -->
+    <section class="page" id="page-inventario">
+      <h1 class="pagetitle">Realizar inventário</h1>
+      <p class="pagesub">Confira a quantidade física e ajuste o sistema com segurança.</p>
+      <div class="form-card" style="max-width:520px;">
+        <div class="field">
+          <label>Produto / variação</label>
+          <select id="inv-product"></select>
+        </div>
+        <div class="field" style="margin-top:14px;">
+          <label>Quantidade no sistema</label>
+          <div id="inv-system-qty" class="mono" style="font-size:22px; font-weight:700;">—</div>
+        </div>
+        <div class="field" style="margin-top:14px;">
+          <label>Quantidade física contada</label>
+          <input type="number" id="inv-physical-qty" min="0" placeholder="0">
+        </div>
+        <div id="inv-diff-preview" class="hint" style="margin-top:8px;"></div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="btn-inv-confirm">Confirmar ajuste de inventário</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTÓRICO -->
+    <section class="page" id="page-historico">
+      <h1 class="pagetitle">Histórico de movimentações</h1>
+      <p class="pagesub">Todo ajuste de estoque fica registrado aqui para auditoria.</p>
+      <div class="toolbar">
+        <div class="search-box">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input type="text" id="hist-search" placeholder="Buscar por produto, SKU ou usuário...">
+        </div>
+        <select id="hist-type-filter">
+          <option value="all">Entradas e saídas</option>
+          <option value="in">Somente entradas</option>
+          <option value="out">Somente saídas</option>
+        </select>
+      </div>
+      <div id="historico-table"></div>
+    </section>
+
+    <!-- CONFIGURAÇÕES -->
+    <section class="page" id="page-config">
+      <h1 class="pagetitle">Configurações</h1>
+      <p class="pagesub">Preferências do sistema.</p>
+      <div class="form-card" style="max-width:480px;">
+        <div class="field">
+          <label>Seu nome (usado nas movimentações)</label>
+          <input type="text" id="cfg-username" placeholder="Ex: João">
+          <div class="hint">Fica salvo neste dispositivo e é registrado em cada entrada/saída para auditoria.</div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="btn-save-username">Salvar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRODUTOS -->
+    <section class="page" id="page-produtos">
+      <h1 class="pagetitle">Produtos</h1>
+      <p class="pagesub">Gerencie SKU, quantidade e dados de cada item.</p>
+      <div class="toolbar">
+        <div class="search-box">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input type="text" id="search-input" placeholder="Buscar por nome, SKU ou categoria...">
+        </div>
+        <button class="btn btn-primary" id="btn-goto-novo">+ Novo produto</button>
+      </div>
+      <div id="produtos-table"></div>
+    </section>
+
+    <!-- NOVO PRODUTO -->
+    <section class="page" id="page-novo">
+      <h1 class="pagetitle" id="form-title">Novo produto</h1>
+      <p class="pagesub">Preencha os dados para gerar o SKU do item.</p>
+      <div class="form-card" style="max-width:900px;">
+        <form id="product-form" novalidate>
+          <input type="hidden" id="f-id">
+          <div class="form-grid">
+            <div class="field full">
+              <label>Nome do produto</label>
+              <input type="text" id="f-name" placeholder="Ex: Camiseta Básica">
+            </div>
+            <div class="field">
+              <label>Categoria</label>
+              <input type="text" id="f-category" placeholder="Ex: Vestuário">
+            </div>
+            <div class="field">
+              <label>Unidade</label>
+              <select id="f-unit">
+                <option value="UN">Unidade (UN)</option>
+                <option value="CX">Caixa (CX)</option>
+                <option value="KG">Quilo (KG)</option>
+                <option value="PC">Par (PC)</option>
+                <option value="LT">Litro (LT)</option>
+              </select>
+            </div>
+            <div class="field full">
+              <label>Este produto tem variações (tamanho e/ou cor)?</label>
+              <div class="mode-toggle" style="max-width:360px;">
+                <button type="button" id="variant-mode-off" class="toggle-sel">Produto único</button>
+                <button type="button" id="variant-mode-on">Várias variações (grade)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== MODO: PRODUTO ÚNICO ===== -->
+          <div id="single-fields">
+            <div class="form-grid" style="margin-top:16px;">
+              <div class="field">
+                <label>Tamanho (opcional)</label>
+                <input type="text" id="f-size" placeholder="Ex: P, M, 42...">
+              </div>
+              <div class="field">
+                <label>Cor (opcional)</label>
+                <input type="text" id="f-color" placeholder="Ex: Azul, Preto...">
+              </div>
+              <div class="field full">
+                <label>Código SKU</label>
+                <div class="sku-row">
+                  <input type="text" id="f-sku" placeholder="Gerado automaticamente">
+                  <button type="button" class="btn btn-ghost" id="btn-gen-sku">Gerar automático</button>
+                </div>
+                <div class="hint">Identificador interno do produto. Por padrão, é ele que vira o código de barras.</div>
+              </div>
+              <div class="field full">
+                <label>Já tenho um código de barras (opcional)</label>
+                <input type="text" id="f-barcode" placeholder="Deixe em branco para usar o SKU como código de barras">
+                <div class="hint">Preencha aqui se o produto já vem com um código de barras próprio (ex: EAN do fabricante). Se preenchido, ele é usado na etiqueta e no leitor no lugar do SKU.</div>
+              </div>
+              <div class="field">
+                <label>Formato do código de barras</label>
+                <select id="f-barcode-format">
+                  <option value="CODE128">CODE128 (letras e números)</option>
+                  <option value="CODE39">CODE39</option>
+                  <option value="EAN13">EAN-13 (numérico, 12-13 dígitos)</option>
+                </select>
+              </div>
+              <div class="field full">
+                <label>Prévia do código de barras</label>
+                <div id="f-barcode-preview" class="label-box" style="width:220px; height:110px; margin:0;"></div>
+              </div>
+              <div class="field">
+                <label>Preço de venda (R$)</label>
+                <input type="number" id="f-price" step="0.01" min="0" placeholder="0,00">
+              </div>
+              <div class="field">
+                <label>Custo (R$)</label>
+                <input type="number" id="f-cost" step="0.01" min="0" placeholder="0,00">
+              </div>
+              <div class="field">
+                <label>Origem do produto</label>
+                <select id="f-origin">
+                  <option value="compra">Compra</option>
+                  <option value="fabricacao">Fabricação</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Quantidade inicial</label>
+                <input type="number" id="f-qty" min="0" placeholder="0">
+              </div>
+              <div class="field">
+                <label>Estoque mínimo</label>
+                <input type="number" id="f-min" min="0" placeholder="0">
+              </div>
+              <div class="field">
+                <label>Estoque ideal</label>
+                <input type="number" id="f-ideal" min="0" placeholder="0">
+                <div class="hint">Usado para calcular a sugestão de reposição.</div>
+              </div>
+            </div>
+            <div class="section-title" style="margin-top:10px;">Fornecedor (opcional)</div>
+            <div class="form-grid">
+              <div class="field">
+                <label>Fornecedor</label>
+                <input type="text" id="f-supplier-name" placeholder="Ex: Fornecedor ABC">
+              </div>
+              <div class="field">
+                <label>SKU do fornecedor</label>
+                <input type="text" id="f-supplier-sku" placeholder="Código no fornecedor">
+              </div>
+              <div class="field">
+                <label>Último preço de compra (R$)</label>
+                <input type="number" id="f-supplier-cost" step="0.01" min="0" placeholder="0,00">
+              </div>
+              <div class="field">
+                <label>Prazo de entrega (dias)</label>
+                <input type="number" id="f-supplier-leadtime" min="0" placeholder="0">
+              </div>
+            </div>
+            <div class="form-actions" id="single-submit-actions">
+              <button type="submit" class="btn btn-primary">Salvar produto</button>
+              <button type="button" class="btn btn-ghost" id="btn-cancel-form">Cancelar</button>
+            </div>
+          </div>
+
+          <!-- ===== MODO: GRADE DE VARIAÇÕES ===== -->
+          <div id="grade-fields" style="display:none;">
+            <div id="existing-variants-hint" class="banner ok" style="display:none;"></div>
+            <div class="form-grid" style="margin-top:16px;">
+              <div class="field">
+                <label>Tamanhos (separados por vírgula)</label>
+                <input type="text" id="g-sizes" placeholder="Ex: P, M, G, GG">
+              </div>
+              <div class="field">
+                <label>Cores (separadas por vírgula)</label>
+                <input type="text" id="g-colors" placeholder="Ex: Preto, Branco, Azul">
+              </div>
+              <div class="hint full" style="grid-column:1/-1;">Preencha um ou os dois campos. Se preencher os dois, o sistema cria uma variação para cada combinação de tamanho + cor — cada uma com SKU e código de barras próprios, sem conflito.</div>
+              <div class="field">
+                <label>Preço padrão (R$)</label>
+                <input type="number" id="g-price" step="0.01" min="0" placeholder="0,00">
+              </div>
+              <div class="field">
+                <label>Custo padrão (R$)</label>
+                <input type="number" id="g-cost" step="0.01" min="0" placeholder="0,00">
+              </div>
+              <div class="field">
+                <label>Origem padrão</label>
+                <select id="g-origin">
+                  <option value="compra">Compra</option>
+                  <option value="fabricacao">Fabricação</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Quantidade padrão por variação</label>
+                <input type="number" id="g-qty" min="0" placeholder="0">
+              </div>
+              <div class="field">
+                <label>Estoque mínimo padrão</label>
+                <input type="number" id="g-min" min="0" placeholder="0">
+              </div>
+              <div class="field">
+                <label>Estoque ideal padrão</label>
+                <input type="number" id="g-ideal" min="0" placeholder="0">
+              </div>
+            </div>
+            <div class="form-actions" style="border-top:none; padding-top:0;">
+              <button type="button" class="btn btn-dark" id="btn-generate-grade">⚙ Gerar grade de variações</button>
+              <button type="button" class="btn btn-ghost" id="btn-add-grade-row">+ Adicionar variação manual</button>
+            </div>
+            <div class="section-title" style="margin-top:24px;">Variações geradas</div>
+            <div class="hint" style="margin-bottom:10px;">Revise: você pode editar SKU, código de barras, preço, custo e quantidade de cada linha antes de salvar.</div>
+            <div id="grade-table-wrap"></div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-primary" id="btn-save-grade">Salvar todas as variações</button>
+              <button type="button" class="btn btn-ghost" id="btn-cancel-form-grade">Cancelar</button>
+            </div>
+          </div>
+
+          <div class="form-grid" style="margin-top:16px;">
+            <div class="field full">
+              <label>Observações (opcional)</label>
+              <textarea id="f-notes" rows="2" placeholder="Fornecedor, localização no depósito..."></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ETIQUETAS -->
+    <section class="page" id="page-etiquetas">
+      <h1 class="pagetitle">Etiquetas de código de barras</h1>
+      <p class="pagesub">Escolha o produto, ajuste o tamanho da etiqueta e imprima.</p>
+      <div class="label-layout">
+        <div class="label-config">
+          <div class="field">
+            <label>Produto</label>
+            <select id="e-product"></select>
+          </div>
+          <div class="field">
+            <label>Formato do código de barras</label>
+            <select id="e-format">
+              <option value="CODE128">CODE128 (aceita letras e números)</option>
+              <option value="CODE39">CODE39</option>
+              <option value="EAN13">EAN-13 (somente numérico, 12 dígitos)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Tamanho da etiqueta</label>
+            <div class="dim-row">
+              <input type="number" id="e-width" min="10" step="1" value="60" placeholder="Largura">
+              <input type="number" id="e-height" min="8" step="1" value="40" placeholder="Altura">
+            </div>
+            <div class="hint">Largura x altura em milímetros (mm)</div>
+            <div class="preset-row">
+              <button type="button" class="preset-chip" data-w="60" data-h="40">60×40mm</button>
+              <button type="button" class="preset-chip" data-w="50" data-h="30">50×30mm</button>
+              <button type="button" class="preset-chip" data-w="40" data-h="25">40×25mm</button>
+              <button type="button" class="preset-chip" data-w="100" data-h="50">100×50mm</button>
+              <button type="button" class="preset-chip" data-w="33" data-h="21">33×21mm</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Mostrar na etiqueta</label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:13px;color:var(--ink);text-transform:none;margin-bottom:6px;">
+              <input type="checkbox" id="e-show-name" checked style="width:auto;"> Nome do produto
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:13px;color:var(--ink);text-transform:none;margin-bottom:6px;">
+              <input type="checkbox" id="e-show-price" checked style="width:auto;"> Preço
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:13px;color:var(--ink);text-transform:none;">
+              <input type="checkbox" id="e-show-sku" checked style="width:auto;"> Código SKU (texto)
+            </label>
+          </div>
+          <div class="field">
+            <label>Cópias a imprimir</label>
+            <div class="copies-row">
+              <div class="stepper">
+                <button type="button" id="copies-minus">−</button>
+                <input type="number" id="e-copies" value="1" min="1">
+                <button type="button" id="copies-plus">+</button>
+              </div>
+              <span class="hint">uma etiqueta por página</span>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-dark" id="btn-print">🖨️ Imprimir etiquetas</button>
+          </div>
+        </div>
+        <div class="label-preview-area" id="label-preview-area">
+          <div class="no-product-msg">Cadastre um produto para visualizar a etiqueta.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LEITOR / SCANNER -->
+    <section class="page" id="page-leitor">
+      <h1 class="pagetitle">Leitor de código de barras</h1>
+      <p class="pagesub">Bipe com um leitor USB/Bluetooth (funciona como teclado) ou use a câmera do dispositivo.</p>
+      <div class="scanner-layout">
+        <div class="scanner-panel">
+          <div class="field">
+            <label>Modo do movimento</label>
+            <div class="mode-toggle">
+              <button type="button" id="scan-mode-in" class="sel-in">+ Entrada</button>
+              <button type="button" id="scan-mode-out">− Saída</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Quantidade por leitura</label>
+            <div class="stepper" style="width:120px;">
+              <button type="button" id="scan-qty-minus">−</button>
+              <input type="number" id="scan-qty" value="1" min="1">
+              <button type="button" id="scan-qty-plus">+</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Motivo</label>
+            <select id="scan-reason"></select>
+          </div>
+          <div class="field">
+            <label>Código (leitor ou digitação manual)</label>
+            <input type="text" id="scan-input" placeholder="Aponte o leitor e bipe..." autocomplete="off">
+            <div class="hint">O cursor fica sempre pronto para receber o leitor. Também é possível digitar o SKU e apertar Enter.</div>
+          </div>
+          <div class="camera-box">
+            <button class="btn btn-ghost" id="btn-toggle-camera" style="width:100%; justify-content:center;">📷 Usar câmera para ler</button>
+            <div id="camera-preview"></div>
+          </div>
+          <div class="scan-result state-idle" id="scan-result">Pronto para bipar. O resultado de cada leitura aparece aqui.</div>
+        </div>
+        <div>
+          <div class="section-title" style="margin-top:0;">Últimas leituras</div>
+          <div class="scan-log-wrap" id="scan-log"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal ajuste de estoque -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal">
+    <h3 id="modal-title">Ajustar estoque</h3>
+    <p class="sub" id="modal-sub">Registrar entrada ou saída de itens.</p>
+    <div class="adjust-toggle">
+      <button type="button" id="btn-adjust-in" class="sel-in">+ Entrada</button>
+      <button type="button" id="btn-adjust-out">− Saída</button>
+    </div>
+    <div class="field">
+      <label>Quantidade</label>
+      <input type="number" id="adjust-qty" min="1" value="1">
+    </div>
+    <div class="field">
+      <label>Motivo</label>
+      <select id="adjust-reason"></select>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" id="btn-adjust-confirm">Confirmar</button>
+      <button class="btn btn-ghost" id="btn-adjust-cancel">Cancelar</button>
     </div>
   </div>
 </div>
 
-<div class="barcode-modal" id="barcodeModal">
-  <div class="barcode-card">
-    <div class="label-name" id="bcName"></div>
-    <div id="printArea">
-      <svg id="bcSvg"></svg>
-    </div>
-    <div class="label-controls">
-      <button class="btn secondary" onclick="closeBarcodeModal()">Fechar</button>
-      <button class="btn" onclick="window.print()">Imprimir etiqueta</button>
-    </div>
-  </div>
-</div>
+<div class="toast" id="toast"></div>
+<div id="print-area"></div>
 
 <script>
-let state = { items: [], history: [], settings: { labelW: 50, labelH: 30 } };
-
-// ---------- Nuvem (Supabase) — salvamento automático, sem login.
-// Painel compartilhado: mesmo padrão do Entrega Direta e Flex — qualquer
-// pessoa que acesse pelo sistema principal vê e edita os mesmos dados.
-const SUPABASE_URL = 'https://rvmbsqrmrkhegdophfpu.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_87-6Lrr7F59aAl1KT_AV2w_WLl6C9of';
-const STATE_TABLE = 'estoque_state';
-const HISTORY_TABLE = 'estoque_state_history';
-let supabaseClient = null;
-if (window.supabase && typeof window.supabase.createClient === 'function') {
-  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-}
-
-let saveTimer = null;
-let lastSavedSnapshot = null;
-
-function setSaveStatus(text) {
-  const el = document.getElementById('statusTag');
-  if (el) el.textContent = text;
-}
-
-function scheduleSave() {
-  if (!supabaseClient) return;
-  setSaveStatus('salvando…');
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(doSave, 900);
-}
-
-async function doSave() {
-  if (!supabaseClient) return;
-  const snapshot = JSON.stringify(state);
-  if (snapshot === lastSavedSnapshot) { setSaveStatus('salvo na nuvem'); return; }
-  const payload = JSON.parse(snapshot);
-  try {
-    const res = await supabaseClient.from(STATE_TABLE)
-      .upsert({ id: 1, data: payload, updated_at: new Date().toISOString() });
-    if (res.error) throw res.error;
-    const histRes = await supabaseClient.from(HISTORY_TABLE).insert({ data: payload });
-    if (histRes.error) throw histRes.error;
-    lastSavedSnapshot = snapshot;
-    setSaveStatus('salvo na nuvem');
-  } catch (e) {
-    console.error('Falha ao salvar na nuvem:', e);
-    setSaveStatus('erro ao salvar (veja o console)');
-  }
-}
-
-async function loadState() {
-  if (!supabaseClient) {
-    setSaveStatus('modo local (sem nuvem)');
-    document.getElementById('labelW').value = state.settings.labelW;
-    document.getElementById('labelH').value = state.settings.labelH;
-    render();
-    return;
-  }
-  setSaveStatus('carregando…');
-  try {
-    const res = await supabaseClient.from(STATE_TABLE).select('data').eq('id', 1).maybeSingle();
-    if (res.error) throw res.error;
-    const row = res.data;
-    if (row && row.data && Array.isArray(row.data.items)) {
-      state = row.data;
-      if (!state.settings) state.settings = { labelW: 50, labelH: 30 };
-      lastSavedSnapshot = JSON.stringify(state);
-    } else {
-      // primeira vez: ainda não existe nada salvo — manda o estado atual como semente inicial
-      await doSave();
+  // Applied immediately (outside the main IIFE) to avoid a flash of the wrong theme on load.
+  // Defaults to dark (matching the reference system) unless the person explicitly chose light before.
+  (function(){
+    try{
+      const saved = localStorage.getItem('estoque_central_theme');
+      if(saved !== 'light') document.documentElement.setAttribute('data-theme','dark');
+    }catch(e){
+      document.documentElement.setAttribute('data-theme','dark');
     }
-  } catch (e) {
-    console.warn('Não foi possível carregar da nuvem, mantendo dados locais.', e);
-  }
-  document.getElementById('labelW').value = state.settings.labelW;
-  document.getElementById('labelH').value = state.settings.labelH;
-  render();
-  setSaveStatus('sincronizado');
-}
-
-function persist() {
-  scheduleSave();
-}
-
-function addItem(ev) {
-  ev.preventDefault();
-  const nome = document.getElementById('fName').value.trim();
-  const tamanho = document.getElementById('fSize').value.trim();
-  const sku = document.getElementById('fSku').value.trim().toUpperCase();
-  const qty = parseInt(document.getElementById('fQty').value, 10) || 0;
-  const min = parseInt(document.getElementById('fMin').value, 10) || 0;
-
-  if (state.items.some(i => i.sku === sku)) {
-    alert('Já existe um item com esse SKU.');
-    return false;
-  }
-
-  state.items.push({ id: crypto.randomUUID(), nome, tamanho, sku, qty, min });
-  if (qty > 0) {
-    state.history.unshift({ date: new Date().toISOString(), sku, nome: `${nome} ${tamanho}`, tipo: 'entrada', qtd: qty });
-  }
-  persist();
-  render();
-  ev.target.reset();
-  document.getElementById('fQty').value = 0;
-  document.getElementById('fMin').value = 5;
-  return false;
-}
-
-function processScan() {
-  const input = document.getElementById('scanInput');
-  const code = input.value.trim().toUpperCase();
-  const feedback = document.getElementById('scanFeedback');
-  input.value = '';
-  input.focus();
-  if (!code) return;
-
-  const item = state.items.find(i => i.sku === code);
-  if (!item) {
-    feedback.textContent = `Código "${code}" não encontrado.`;
-    feedback.className = 'scan-feedback err';
-    return;
-  }
-  if (item.qty <= 0) {
-    feedback.textContent = `${item.nome} ${item.tamanho} já está zerado.`;
-    feedback.className = 'scan-feedback err';
-    return;
-  }
-  item.qty -= 1;
-  state.history.unshift({ date: new Date().toISOString(), sku: item.sku, nome: `${item.nome} ${item.tamanho}`, tipo: 'saida', qtd: 1 });
-  persist();
-  render();
-  feedback.textContent = `Baixa dada: ${item.nome} ${item.tamanho} — restam ${item.qty}.`;
-  feedback.className = 'scan-feedback ok';
-}
-
-document.getElementById('scanInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') { e.preventDefault(); processScan(); }
-});
-
-function adjustQty(id, delta) {
-  const item = state.items.find(i => i.id === id);
-  if (!item) return;
-  item.qty = Math.max(0, item.qty + delta);
-  state.history.unshift({
-    date: new Date().toISOString(), sku: item.sku, nome: `${item.nome} ${item.tamanho}`,
-    tipo: delta > 0 ? 'entrada' : 'saida', qtd: Math.abs(delta)
-  });
-  persist();
-  render();
-}
-
-function removeItem(id) {
-  if (!confirm('Remover este item do estoque?')) return;
-  state.items = state.items.filter(i => i.id !== id);
-  persist();
-  render();
-}
-
-function saveSettings() {
-  state.settings.labelW = parseInt(document.getElementById('labelW').value, 10) || 50;
-  state.settings.labelH = parseInt(document.getElementById('labelH').value, 10) || 30;
-  persist();
-}
-
-function openBarcode(id) {
-  const item = state.items.find(i => i.id === id);
-  if (!item) return;
-  document.getElementById('bcName').textContent = `${item.nome} ${item.tamanho} — ${item.sku}`;
-  const modal = document.getElementById('barcodeModal');
-  modal.classList.add('open');
-  const svg = document.getElementById('bcSvg');
-  const w = state.settings.labelW, h = state.settings.labelH;
-  JsBarcode(svg, item.sku, {
-    format: 'CODE128',
-    width: 2,
-    height: Math.max(30, h * 2),
-    displayValue: true,
-    fontSize: 12,
-    margin: 8
-  });
-  document.getElementById('printArea').style.width = w + 'mm';
-}
-
-function closeBarcodeModal() {
-  document.getElementById('barcodeModal').classList.remove('open');
-}
-
-function switchTab(tab) {
-  document.getElementById('tabItens').classList.toggle('active', tab === 'itens');
-  document.getElementById('tabHist').classList.toggle('active', tab === 'hist');
-  document.getElementById('viewItens').style.display = tab === 'itens' ? 'block' : 'none';
-  document.getElementById('viewHist').style.display = tab === 'hist' ? 'block' : 'none';
-}
-
-function render() {
-  const body = document.getElementById('itemsBody');
-  const empty = document.getElementById('itemsEmpty');
-  body.innerHTML = '';
-  if (state.items.length === 0) {
-    empty.style.display = 'block';
-  } else {
-    empty.style.display = 'none';
-    state.items.slice().sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(item => {
-      const tr = document.createElement('tr');
-      if (item.qty <= item.min) tr.className = 'low';
-      tr.innerHTML = `
-        <td>${item.nome} <span style="color:var(--ink-dim)">(${item.tamanho})</span></td>
-        <td style="font-family:var(--mono)">${item.sku}</td>
-        <td><span class="qty-pill">${item.qty}</span> ${item.qty <= item.min ? '⚠️' : ''}</td>
-        <td class="item-actions">
-          <button class="btn secondary" onclick="adjustQty('${item.id}', 1)">+1</button>
-          <button class="btn secondary" onclick="adjustQty('${item.id}', -1)">-1</button>
-          <button class="btn secondary" onclick="openBarcode('${item.id}')">Etiqueta</button>
-          <button class="btn danger" onclick="removeItem('${item.id}')">✕</button>
-        </td>`;
-      body.appendChild(tr);
-    });
-  }
-
-  const histList = document.getElementById('historyList');
-  const histEmpty = document.getElementById('histEmpty');
-  histList.innerHTML = '';
-  if (state.history.length === 0) {
-    histEmpty.style.display = 'block';
-  } else {
-    histEmpty.style.display = 'none';
-    state.history.slice(0, 200).forEach(h => {
-      const d = new Date(h.date);
-      const row = document.createElement('div');
-      row.className = 'history-row';
-      row.innerHTML = `
-        <span>${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})} — ${h.nome}</span>
-        <span class="${h.tipo}">${h.tipo === 'entrada' ? '+' : '-'}${h.qtd}</span>`;
-      histList.appendChild(row);
-    });
-  }
-}
-
-// ---------- Tema claro/escuro ----------
+  })();
+<\/script>
+<script>
 (function(){
-  var themeBtn = document.getElementById('btn-theme-toggle');
-  if(!themeBtn) return;
-  themeBtn.addEventListener('click', function(){
-    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    if(isLight){
-      document.documentElement.removeAttribute('data-theme');
-      themeBtn.textContent = '☀️ Claro';
-    } else {
-      document.documentElement.setAttribute('data-theme', 'light');
-      themeBtn.textContent = '🌙 Escuro';
+  "use strict";
+
+  // ---------------- Theme (light/dark) ----------------
+  function applyTheme(theme){
+    document.documentElement.setAttribute('data-theme', theme);
+    try{ localStorage.setItem('estoque_central_theme', theme); }catch(e){}
+    const knob = $('#theme-knob');
+    if(knob) knob.textContent = theme==='dark' ? '🌙' : '☀️';
+  }
+  function currentTheme(){
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  }
+
+  // ---------------- State ----------------
+  let products = [];
+  let settings = { seq: 1, currentUser: '' };
+  let scanLog = [];
+  let movements = [];
+  let adjustMode = 'in';
+  let adjustTargetId = null;
+  let scannerMode = 'in';
+  const STORAGE_KEY = 'estoque_central_v1';
+  let storageAvailable = true;
+
+  const $ = (sel, ctx) => (ctx||document).querySelector(sel);
+  const $all = (sel, ctx) => Array.from((ctx||document).querySelectorAll(sel));
+  const fmtMoney = n => 'R$ ' + (Number(n)||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const uid = () => 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+
+  function showToast(msg){
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>t.classList.remove('show'), 2600);
+  }
+
+  // ---------------- Movement reasons ----------------
+  const REASONS_IN = [
+    {v:'compra', l:'Compra'},
+    {v:'producao', l:'Produção'},
+    {v:'devolucao', l:'Devolução'},
+    {v:'ajuste', l:'Ajuste de inventário'},
+    {v:'outro', l:'Outro'}
+  ];
+  const REASONS_OUT = [
+    {v:'producao', l:'Produção'},
+    {v:'venda', l:'Venda'},
+    {v:'perda', l:'Perda'},
+    {v:'defeito', l:'Defeito'},
+    {v:'amostra', l:'Amostra'},
+    {v:'ajuste', l:'Ajuste de inventário'},
+    {v:'outro', l:'Outro'}
+  ];
+  function reasonLabel(type, value){
+    const list = type==='in' ? REASONS_IN : REASONS_OUT;
+    const found = list.find(r=>r.v===value);
+    return found ? found.l : (value || '—');
+  }
+  function reasonOptionsHtml(type){
+    const list = type==='in' ? REASONS_IN : REASONS_OUT;
+    return list.map(r=>`<option value="${r.v}">${r.l}</option>`).join('');
+  }
+
+  // ---------------- Movement history (core of every stock change) ----------------
+  function logMovement(product, type, qty, reason){
+    const before = product.quantity;
+    if(type==='in'){ product.quantity = before + qty; }
+    else{ product.quantity = Math.max(0, before - qty); }
+    const entry = {
+      id: uid(),
+      productId: product.id,
+      sku: product.sku,
+      productName: product.name,
+      size: product.size || '',
+      color: product.color || '',
+      type, qty,
+      reason: reason || '',
+      user: settings.currentUser || '',
+      before, after: product.quantity,
+      timestamp: Date.now()
+    };
+    movements.unshift(entry);
+    if(movements.length > 3000) movements = movements.slice(0, 3000);
+    return entry;
+  }
+
+  // ---------------- Persistence: Supabase (mesmo padrão do resto do sistema) ----------------
+  // Painel compartilhado, sem login próprio — usa as mesmas tabelas já criadas
+  // (estoque_state / estoque_state_history) no projeto Supabase do sistema.
+  const SUPABASE_URL = 'https://rvmbsqrmrkhegdophfpu.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_87-6Lrr7F59aAl1KT_AV2w_WLl6C9of';
+  const STATE_TABLE = 'estoque_state';
+  const HISTORY_TABLE = 'estoque_state_history';
+  let supabaseClient = null;
+  if(window.supabase && typeof window.supabase.createClient === 'function'){
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+  let saveTimer = null;
+  let lastSavedSnapshot = null;
+
+  function setSyncStatus(text){
+    const el = $('#sync-status');
+    if(el) el.textContent = text;
+  }
+
+  function testStorage(){
+    try{
+      const k = '__test__' + Date.now();
+      localStorage.setItem(k, '1');
+      localStorage.removeItem(k);
+      return true;
+    }catch(e){
+      return false;
     }
+  }
+
+  function migrateProducts(){
+    // fills in fields introduced after the original launch, without touching existing values
+    products.forEach(p=>{
+      if(p.idealStock == null) p.idealStock = p.minStock || 0;
+      if(p.supplier === undefined) p.supplier = null;
+      if(p.origin === undefined) p.origin = 'compra';
+      if(p.size === undefined) p.size = '';
+      if(p.color === undefined) p.color = '';
+    });
+  }
+
+  // ---- Fallback local (só usado se o script do Supabase não carregar) ----
+  function loadDataLocalFallback(){
+    storageAvailable = testStorage();
+    if(!storageAvailable){
+      renderStorageBanner();
+      renderAll();
+      return;
+    }
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        products = parsed.products || [];
+        settings = Object.assign(settings, parsed.settings || {});
+        scanLog = parsed.scanLog || [];
+        movements = parsed.movements || [];
+      }
+    }catch(e){
+      console.error('Erro ao carregar dados salvos', e);
+    }
+    migrateProducts();
+    renderStorageBanner();
+    renderAll();
+  }
+
+  function saveDataLocalFallback(){
+    if(!storageAvailable){
+      showToast('⚠️ O navegador não permite salvar automaticamente aqui. Use "Exportar backup" para não perder os dados.');
+      return;
+    }
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({products, settings, scanLog, movements}));
+    }catch(e){
+      console.error('Erro ao salvar dados', e);
+      showToast('⚠️ Não foi possível salvar. Faça um backup (.json) para não perder os dados.');
+    }
+  }
+
+  // ---- Nuvem (caminho principal) ----
+  function scheduleSave(){
+    if(!supabaseClient){ saveDataLocalFallback(); return; }
+    setSyncStatus('salvando…');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(doSaveCloud, 900);
+  }
+
+  async function doSaveCloud(){
+    if(!supabaseClient) return;
+    const snapshot = JSON.stringify({products, settings, scanLog, movements});
+    if(snapshot === lastSavedSnapshot){ setSyncStatus('salvo na nuvem'); return; }
+    const payload = JSON.parse(snapshot);
+    try{
+      const res = await supabaseClient.from(STATE_TABLE).upsert({ id:1, data: payload, updated_at: new Date().toISOString() });
+      if(res.error) throw res.error;
+      const hist = await supabaseClient.from(HISTORY_TABLE).insert({ data: payload });
+      if(hist.error) throw hist.error;
+      lastSavedSnapshot = snapshot;
+      setSyncStatus('salvo na nuvem');
+    }catch(e){
+      console.error('Falha ao salvar na nuvem:', e);
+      setSyncStatus('erro ao salvar (veja o console)');
+    }
+  }
+
+  function saveData(){
+    scheduleSave();
+  }
+
+  async function loadData(){
+    if(!supabaseClient){
+      setSyncStatus('modo local (sem nuvem)');
+      loadDataLocalFallback();
+      return;
+    }
+    setSyncStatus('carregando…');
+    try{
+      const res = await supabaseClient.from(STATE_TABLE).select('data').eq('id', 1).maybeSingle();
+      if(res.error) throw res.error;
+      const row = res.data;
+      if(row && row.data && Array.isArray(row.data.products)){
+        products = row.data.products || [];
+        settings = Object.assign(settings, row.data.settings || {});
+        scanLog = row.data.scanLog || [];
+        movements = row.data.movements || [];
+        lastSavedSnapshot = JSON.stringify({products, settings, scanLog, movements});
+      } else {
+        // primeira vez: ainda não existe nada salvo — manda o estado atual (vazio) como semente inicial
+        await doSaveCloud();
+      }
+    }catch(e){
+      console.warn('Não foi possível carregar da nuvem, mantendo dados locais.', e);
+    }
+    migrateProducts();
+    renderStorageBanner();
+    renderAll();
+    setSyncStatus('sincronizado');
+  }
+
+  function renderStorageBanner(){
+    const el = $('#storage-banner');
+    if(!el) return;
+    if(supabaseClient){ el.innerHTML = ''; return; }
+    if(!storageAvailable){
+      el.innerHTML = `<div class="banner warn">⚠️ Este navegador está bloqueando o salvamento automático (comum em modo privado/anônimo ou em alguns visualizadores de arquivo). Use os botões <b>"Exportar backup"</b> e <b>"Importar backup"</b> na barra lateral para guardar e recarregar seus dados com segurança.</div>`;
+    }else{
+      el.innerHTML = '';
+    }
+  }
+
+  function libsReady(){
+    return typeof JsBarcode !== 'undefined';
+  }
+
+  function renderLibsBanner(){
+    const el = $('#libs-banner');
+    const printBtn = $('#btn-print');
+    if(!el) return;
+    const st = window.__libStatus || {};
+    if(libsReady()){
+      el.innerHTML = '';
+      if(printBtn){ printBtn.disabled = false; printBtn.style.opacity = '1'; printBtn.style.cursor = 'pointer'; }
+      return;
+    }
+    if(printBtn){ printBtn.disabled = true; printBtn.style.opacity = '.5'; printBtn.style.cursor = 'not-allowed'; }
+    if(st.jsbarcodeFailed){
+      el.innerHTML = `<div class="banner warn">⚠️ Não foi possível carregar a biblioteca que gera os códigos de barras (ela vem de um servidor externo). Isso costuma acontecer sem internet, ou com bloqueador de anúncios/firewall travando o acesso. Verifique sua conexão e clique em <b>"Tentar novamente"</b>. Enquanto isso, a impressão de etiquetas fica bloqueada para evitar código de barras em branco.
+        <button class="btn btn-ghost" id="btn-retry-libs" style="margin-left:8px;">🔄 Tentar novamente</button></div>`;
+      const btn = $('#btn-retry-libs');
+      if(btn) btn.addEventListener('click', ()=>location.reload());
+    }else{
+      el.innerHTML = `<div class="banner warn">⏳ Carregando a biblioteca de código de barras (precisa de internet na primeira vez)... a prévia deve aparecer em instantes.</div>`;
+    }
+  }
+
+  window.__onLibsChanged = function(){
+    renderLibsBanner();
+    if(libsReady()){
+      renderLabelPreview();
+      updateFormBarcodePreview();
+    }
+  };
+
+  // ---------------- Backup / restore ----------------
+  $('#btn-export').addEventListener('click', ()=>{
+    const payload = JSON.stringify({products, settings, scanLog, movements}, null, 2);
+    const blob = new Blob([payload], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    a.href = url;
+    a.download = `estoque-backup-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('⬇ Backup exportado.');
+  });
+
+  $('#btn-import-trigger').addEventListener('click', ()=>$('#btn-import-file').click());
+  $('#btn-import-file').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const parsed = JSON.parse(reader.result);
+        if(!Array.isArray(parsed.products)) throw new Error('formato inválido');
+        if(products.length > 0){
+          if(!confirm(`Importar este backup vai SUBSTITUIR os ${products.length} produtos atuais por ${parsed.products.length} produtos do arquivo. Continuar?`)) return;
+        }
+        products = parsed.products || [];
+        settings = Object.assign(settings, parsed.settings || {});
+        scanLog = parsed.scanLog || [];
+        movements = parsed.movements || [];
+        migrateProducts();
+        saveData();
+        renderAll();
+        showToast('✅ Backup importado com sucesso.');
+      }catch(err){
+        showToast('⚠️ Arquivo inválido. Selecione um backup exportado por este sistema.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  // ---------------- Navigation ----------------
+  function gotoPage(name){
+    $all('.page').forEach(p=>p.classList.remove('active'));
+    $('#page-'+name).classList.add('active');
+    $all('nav.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.page===name));
+    if(name==='etiquetas') renderLabelPreview();
+    if(name==='leitor'){ renderScanLog(); focusScanInput(); }
+    else{ stopCamera(); }
+    if(name==='movimentar'){ refreshBulkProductSelect(); }
+    if(name==='reposicao'){ renderReposicaoList(); }
+    if(name==='inventario'){ refreshInvProductSelect(); }
+    if(name==='historico'){ renderHistorico(); }
+    if(name==='config'){ loadConfigPage(); }
+  }
+  $all('nav.tabs button').forEach(b=>b.addEventListener('click', ()=>gotoPage(b.dataset.page)));
+  $('#btn-goto-novo').addEventListener('click', ()=>{ resetForm(); gotoPage('novo'); });
+  $('#btn-cancel-form').addEventListener('click', ()=>{ resetForm(); gotoPage('produtos'); });
+
+  // ---------------- SKU generation ----------------
+  function slugPrefix(str){
+    return (str||'GER').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z]/g,'').toUpperCase().slice(0,3).padEnd(3,'X');
+  }
+  function generateSku(){
+    const cat = $('#f-category').value.trim();
+    const prefix = slugPrefix(cat || 'GER');
+    const code = prefix + '-' + String(settings.seq).padStart(4,'0');
+    settings.seq += 1;
+    return code;
+  }
+  function generateVariantSku(category, size, color){
+    const prefix = slugPrefix(category || 'GER');
+    let parts = [prefix];
+    if(size) parts.push(size.toString().toUpperCase().replace(/\s+/g,'').slice(0,6));
+    if(color) parts.push(color.toString().toUpperCase().replace(/\s+/g,'').slice(0,4));
+    parts.push(String(settings.seq).padStart(4,'0'));
+    settings.seq += 1;
+    return parts.join('-');
+  }
+  $('#btn-gen-sku').addEventListener('click', ()=>{
+    $('#f-sku').value = generateSku();
+    updateFormBarcodePreview();
+  });
+
+  // ---------------- Variant mode toggle (produto único vs grade) ----------------
+  function setVariantMode(mode){
+    $('#single-fields').style.display = mode==='single' ? '' : 'none';
+    $('#grade-fields').style.display = mode==='grade' ? '' : 'none';
+    $('#variant-mode-off').classList.toggle('toggle-sel', mode==='single');
+    $('#variant-mode-on').classList.toggle('toggle-sel', mode==='grade');
+  }
+  $('#variant-mode-off').addEventListener('click', ()=>setVariantMode('single'));
+  $('#variant-mode-on').addEventListener('click', ()=>setVariantMode('grade'));
+
+  function renderExistingVariantsHint(name){
+    const el = $('#existing-variants-hint');
+    if(!el) return;
+    const trimmed = (name||'').trim();
+    if(!trimmed){ el.style.display = 'none'; el.innerHTML=''; return; }
+    const existing = products.filter(p=>p.name.trim().toLowerCase() === trimmed.toLowerCase());
+    if(existing.length===0){ el.style.display = 'none'; el.innerHTML=''; return; }
+    el.style.display = 'flex';
+    el.innerHTML = `<div>✅ <b>"${trimmed}"</b> já tem ${existing.length} variação(ões) cadastrada(s): ` +
+      existing.map(p=>{
+        const v = [p.size,p.color].filter(Boolean).join(' / ') || 'sem tamanho/cor';
+        return `<span class="sku-chip" style="margin:0 3px;">${v}</span>`;
+      }).join('') + ` — as novas que você gerar abaixo serão adicionadas a este mesmo produto.</div>`;
+  }
+  $('#f-name').addEventListener('input', ()=>{
+    if($('#grade-fields').style.display !== 'none') renderExistingVariantsHint($('#f-name').value);
+  });
+
+  function openAddVariant(baseProduct){
+    resetForm();
+    $('#f-name').value = baseProduct.name;
+    $('#f-category').value = baseProduct.category;
+    $('#f-unit').value = baseProduct.unit;
+    $('#f-notes').value = baseProduct.notes || '';
+    $('#g-price').value = baseProduct.price;
+    $('#g-cost').value = baseProduct.cost;
+    $('#g-origin').value = baseProduct.origin || 'compra';
+    $('#g-min').value = baseProduct.minStock;
+    $('#g-ideal').value = baseProduct.idealStock || baseProduct.minStock || 0;
+    setVariantMode('grade');
+    renderExistingVariantsHint(baseProduct.name);
+    $('#form-title').textContent = `Adicionar variação — ${baseProduct.name}`;
+    gotoPage('novo');
+  }
+
+  // ---------------- Grade de variações (tamanho / cor em lote) ----------------
+  let gradeRows = [];
+
+  function parseListInput(str){
+    return (str||'').split(',').map(s=>s.trim()).filter(Boolean);
+  }
+
+  function renderGradeTable(){
+    const wrap = $('#grade-table-wrap');
+    if(gradeRows.length===0){
+      wrap.innerHTML = `<div class="empty">Gere a grade ou adicione uma variação manual para começar.</div>`;
+      return;
+    }
+    wrap.innerHTML = `<table><thead><tr>
+        <th>Tamanho</th><th>Cor</th><th>SKU</th><th>Cód. barras</th><th>Preço</th><th>Custo</th><th>Origem</th><th>Qtd</th><th>Mín</th><th>Ideal</th><th></th>
+      </tr></thead>
+      <tbody>${gradeRows.map((r,i)=>`<tr>
+        <td><input type="text" data-idx="${i}" data-field="size" value="${r.size||''}" style="width:70px;"></td>
+        <td><input type="text" data-idx="${i}" data-field="color" value="${r.color||''}" style="width:90px;"></td>
+        <td><input type="text" class="mono" data-idx="${i}" data-field="sku" value="${r.sku||''}" style="width:150px;"></td>
+        <td><input type="text" data-idx="${i}" data-field="barcode" value="${r.barcode||''}" placeholder="usa o SKU" style="width:120px;"></td>
+        <td><input type="number" step="0.01" data-idx="${i}" data-field="price" value="${r.price||0}" style="width:80px;"></td>
+        <td><input type="number" step="0.01" data-idx="${i}" data-field="cost" value="${r.cost||0}" style="width:80px;"></td>
+        <td><select data-idx="${i}" data-field="origin" style="width:110px;">
+              <option value="compra" ${r.origin!=='fabricacao'?'selected':''}>Compra</option>
+              <option value="fabricacao" ${r.origin==='fabricacao'?'selected':''}>Fabricação</option>
+            </select></td>
+        <td><input type="number" data-idx="${i}" data-field="qty" value="${r.qty||0}" style="width:65px;"></td>
+        <td><input type="number" data-idx="${i}" data-field="min" value="${r.min||0}" style="width:65px;"></td>
+        <td><input type="number" data-idx="${i}" data-field="ideal" value="${r.ideal||0}" style="width:65px;"></td>
+        <td><button type="button" class="icon-btn danger" data-remove-row="${i}" title="Remover">✕</button></td>
+      </tr>`).join('')}</tbody></table>`;
+  }
+
+  $('#grade-table-wrap').addEventListener('input', (e)=>{
+    const input = e.target.closest('input[data-idx], select[data-idx]');
+    if(!input) return;
+    const idx = parseInt(input.dataset.idx);
+    const field = input.dataset.field;
+    if(!gradeRows[idx]) return;
+    gradeRows[idx][field] = input.value;
+  });
+  $('#grade-table-wrap').addEventListener('change', (e)=>{
+    const input = e.target.closest('select[data-idx]');
+    if(!input) return;
+    const idx = parseInt(input.dataset.idx);
+    const field = input.dataset.field;
+    if(!gradeRows[idx]) return;
+    gradeRows[idx][field] = input.value;
+  });
+  $('#grade-table-wrap').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-remove-row]');
+    if(!btn) return;
+    gradeRows.splice(parseInt(btn.dataset.removeRow), 1);
+    renderGradeTable();
+  });
+
+  $('#btn-generate-grade').addEventListener('click', ()=>{
+    const sizes = parseListInput($('#g-sizes').value);
+    const colors = parseListInput($('#g-colors').value);
+    if(sizes.length===0 && colors.length===0){
+      showToast('⚠️ Informe ao menos tamanhos ou cores para gerar a grade.');
+      return;
+    }
+    const category = $('#f-category').value.trim();
+    const basePrice = parseFloat($('#g-price').value)||0;
+    const baseCost = parseFloat($('#g-cost').value)||0;
+    const baseOrigin = $('#g-origin').value;
+    const baseQty = parseInt($('#g-qty').value)||0;
+    const baseMin = parseInt($('#g-min').value)||0;
+    const baseIdeal = parseInt($('#g-ideal').value)||baseMin;
+
+    let combos = [];
+    if(sizes.length && colors.length){
+      sizes.forEach(sz => colors.forEach(c => combos.push({size:sz, color:c})));
+    }else if(sizes.length){
+      sizes.forEach(sz => combos.push({size:sz, color:''}));
+    }else{
+      colors.forEach(c => combos.push({size:'', color:c}));
+    }
+
+    gradeRows = combos.map(c => ({
+      size: c.size, color: c.color,
+      sku: generateVariantSku(category, c.size, c.color),
+      barcode: '',
+      format: 'CODE128',
+      price: basePrice, cost: baseCost, origin: baseOrigin, qty: baseQty, min: baseMin, ideal: baseIdeal
+    }));
+    renderGradeTable();
+    showToast(`✅ ${gradeRows.length} variações geradas. Revise antes de salvar.`);
+  });
+
+  $('#btn-add-grade-row').addEventListener('click', ()=>{
+    const category = $('#f-category').value.trim();
+    gradeRows.push({
+      size:'', color:'',
+      sku: generateVariantSku(category, '', ''),
+      barcode:'', format:'CODE128',
+      price: parseFloat($('#g-price').value)||0,
+      cost: parseFloat($('#g-cost').value)||0,
+      origin: $('#g-origin').value,
+      qty: parseInt($('#g-qty').value)||0,
+      min: parseInt($('#g-min').value)||0,
+      ideal: parseInt($('#g-ideal').value)||0
+    });
+    renderGradeTable();
+  });
+
+  $('#btn-cancel-form-grade').addEventListener('click', ()=>{ resetForm(); gotoPage('produtos'); });
+
+  $('#btn-save-grade').addEventListener('click', ()=>{
+    if(gradeRows.length===0){ showToast('⚠️ Gere ou adicione ao menos uma variação.'); return; }
+    if(!$('#f-name').value.trim()){ showToast('⚠️ Informe o nome do produto.'); $('#f-name').focus(); return; }
+    if(!$('#f-category').value.trim()){ showToast('⚠️ Informe a categoria.'); $('#f-category').focus(); return; }
+
+    const nameTrim = $('#f-name').value.trim();
+    const skusUsed = new Set(products.map(p=>p.sku.toUpperCase()));
+    const barcodesUsed = new Set(products.filter(p=>p.barcode).map(p=>p.barcode.toUpperCase()));
+    const seenSkus = new Set(), seenBarcodes = new Set(), seenCombos = new Set();
+
+    // combos already registered for this same product name (existing products)
+    const existingCombos = new Set(
+      products.filter(p=>p.name.trim().toLowerCase() === nameTrim.toLowerCase())
+        .map(p => (p.size||'').trim().toLowerCase() + '|' + (p.color||'').trim().toLowerCase())
+    );
+
+    for(const r of gradeRows){
+      const skuU = (r.sku||'').trim().toUpperCase();
+      if(!skuU){ showToast('⚠️ Toda variação precisa de um SKU.'); return; }
+      if(skusUsed.has(skuU) || seenSkus.has(skuU)){ showToast(`⚠️ SKU duplicado: "${r.sku}". Ajuste antes de salvar.`); return; }
+      seenSkus.add(skuU);
+      const bcU = (r.barcode||'').trim().toUpperCase();
+      if(bcU){
+        if(barcodesUsed.has(bcU) || seenBarcodes.has(bcU)){ showToast(`⚠️ Código de barras duplicado: "${r.barcode}". Ajuste antes de salvar.`); return; }
+        seenBarcodes.add(bcU);
+      }
+      const comboKey = (r.size||'').trim().toLowerCase() + '|' + (r.color||'').trim().toLowerCase();
+      const comboLabel = [r.size,r.color].filter(Boolean).join(' / ') || '(sem tamanho/cor)';
+      if(existingCombos.has(comboKey) || seenCombos.has(comboKey)){
+        showToast(`⚠️ "${nameTrim}" já tem uma variação ${comboLabel}. Ajuste antes de salvar.`);
+        return;
+      }
+      seenCombos.add(comboKey);
+    }
+
+    const name = nameTrim;
+    const category = $('#f-category').value.trim();
+    const unit = $('#f-unit').value;
+    const notes = $('#f-notes').value.trim();
+
+    gradeRows.forEach(r=>{
+      products.push({
+        id: uid(),
+        name, category, unit, notes,
+        size: (r.size||'').trim(), color: (r.color||'').trim(),
+        sku: r.sku.trim(),
+        barcode: (r.barcode||'').trim(),
+        barcodeFormat: r.format || 'CODE128',
+        price: parseFloat(r.price)||0,
+        cost: parseFloat(r.cost)||0,
+        origin: r.origin === 'fabricacao' ? 'fabricacao' : 'compra',
+        quantity: parseInt(r.qty)||0,
+        minStock: parseInt(r.min)||0,
+        idealStock: parseInt(r.ideal)||parseInt(r.min)||0,
+        createdAt: Date.now()
+      });
+    });
+
+    saveData();
+    showToast(`✅ ${gradeRows.length} variações cadastradas com sucesso.`);
+    gradeRows = [];
+    renderGradeTable();
+    resetForm();
+    renderAll();
+    gotoPage('produtos');
+  });
+
+  // helper: which value actually gets encoded as the physical barcode
+  function getBarcodeValue(p){
+    return (p && p.barcode && p.barcode.trim()) ? p.barcode.trim() : (p ? p.sku : '');
+  }
+
+  function updateFormBarcodePreview(){
+    const box = $('#f-barcode-preview');
+    if(!box) return;
+    const barcode = $('#f-barcode').value.trim();
+    const sku = $('#f-sku').value.trim();
+    const value = barcode || sku;
+    const format = $('#f-barcode-format').value;
+    if(!value){
+      box.innerHTML = `<div class="no-product-msg" style="font-size:11.5px;">Gere ou digite um SKU para ver a prévia</div>`;
+      return;
+    }
+    box.innerHTML = `<svg class="barcode-svg"></svg><div class="lsku">${value}</div>`;
+    const svg = box.querySelector('.barcode-svg');
+    if(svg) drawBarcode(svg, value, format);
+  }
+  ['f-sku','f-barcode'].forEach(id=>$('#'+id).addEventListener('input', updateFormBarcodePreview));
+  $('#f-barcode-format').addEventListener('change', updateFormBarcodePreview);
+
+  // ---------------- Form ----------------
+  function resetForm(){
+    $('#product-form').reset();
+    $('#f-id').value = '';
+    $('#form-title').textContent = 'Novo produto';
+    gradeRows = [];
+    renderGradeTable();
+    setVariantMode('single');
+    renderExistingVariantsHint('');
+    updateFormBarcodePreview();
+  }
+
+  function fillForm(p){
+    $('#f-id').value = p.id;
+    $('#f-name').value = p.name;
+    $('#f-category').value = p.category;
+    $('#f-unit').value = p.unit;
+    $('#f-size').value = p.size || '';
+    $('#f-color').value = p.color || '';
+    $('#f-sku').value = p.sku;
+    $('#f-barcode').value = p.barcode || '';
+    $('#f-barcode-format').value = p.barcodeFormat || 'CODE128';
+    $('#f-price').value = p.price;
+    $('#f-cost').value = p.cost;
+    $('#f-origin').value = p.origin || 'compra';
+    $('#f-qty').value = p.quantity;
+    $('#f-min').value = p.minStock;
+    $('#f-ideal').value = p.idealStock != null ? p.idealStock : p.minStock;
+    $('#f-supplier-name').value = (p.supplier && p.supplier.name) || '';
+    $('#f-supplier-sku').value = (p.supplier && p.supplier.sku) || '';
+    $('#f-supplier-cost').value = (p.supplier && p.supplier.cost) || '';
+    $('#f-supplier-leadtime').value = (p.supplier && p.supplier.leadTime) || '';
+    $('#f-notes').value = p.notes || '';
+    $('#form-title').textContent = 'Editar produto';
+    setVariantMode('single');
+    updateFormBarcodePreview();
+  }
+
+  $('#product-form').addEventListener('submit', (e)=>{
+    e.preventDefault();
+
+    if(!$('#f-name').value.trim()){
+      showToast('⚠️ Informe o nome do produto.');
+      $('#f-name').focus();
+      return;
+    }
+    if(!$('#f-category').value.trim()){
+      showToast('⚠️ Informe a categoria do produto.');
+      $('#f-category').focus();
+      return;
+    }
+
+    const id = $('#f-id').value;
+    let sku = $('#f-sku').value.trim();
+    if(!sku){ sku = generateSku(); }
+    const dup = products.find(p => p.sku.toUpperCase() === sku.toUpperCase() && p.id !== id);
+    if(dup){ showToast('⚠️ Já existe um produto com esse SKU.'); return; }
+
+    const barcode = $('#f-barcode').value.trim();
+    if(barcode){
+      const dupBarcode = products.find(p => (p.barcode||'').toUpperCase() === barcode.toUpperCase() && p.id !== id);
+      if(dupBarcode){ showToast('⚠️ Já existe um produto com esse código de barras.'); return; }
+    }
+
+    const supplierName = $('#f-supplier-name').value.trim();
+    const supplier = supplierName ? {
+      name: supplierName,
+      sku: $('#f-supplier-sku').value.trim(),
+      cost: parseFloat($('#f-supplier-cost').value)||0,
+      leadTime: parseInt($('#f-supplier-leadtime').value)||0
+    } : null;
+
+    const data = {
+      id: id || uid(),
+      name: $('#f-name').value.trim(),
+      category: $('#f-category').value.trim(),
+      unit: $('#f-unit').value,
+      size: $('#f-size').value.trim(),
+      color: $('#f-color').value.trim(),
+      sku: sku,
+      barcode: barcode,
+      barcodeFormat: $('#f-barcode-format').value,
+      price: parseFloat($('#f-price').value)||0,
+      cost: parseFloat($('#f-cost').value)||0,
+      origin: $('#f-origin').value,
+      quantity: parseInt($('#f-qty').value)||0,
+      minStock: parseInt($('#f-min').value)||0,
+      idealStock: parseInt($('#f-ideal').value)||parseInt($('#f-min').value)||0,
+      supplier: supplier,
+      notes: $('#f-notes').value.trim(),
+      createdAt: id ? (products.find(p=>p.id===id)||{}).createdAt : Date.now()
+    };
+
+    if(id){
+      const idx = products.findIndex(p=>p.id===id);
+      products[idx] = data;
+      showToast('✅ Produto atualizado.');
+    }else{
+      products.push(data);
+      showToast('✅ Produto cadastrado.');
+    }
+    saveData();
+    resetForm();
+    renderAll();
+    gotoPage('produtos');
+  });
+
+  // ---------------- Produtos table ----------------
+  // ---------------- Stock status helper (used across Produtos, Reposição, Painel) ----------------
+  function getStockStatus(p){
+    const qty = Number(p.quantity)||0;
+    const min = Number(p.minStock)||0;
+    const ideal = Number(p.idealStock)||min;
+    if(qty <= 0) return {level:'out', label:'Sem estoque', cls:'qty-low'};
+    if(qty < min) return {level:'critical', label:'Crítico', cls:'qty-low'};
+    if(ideal > min && qty < ideal) return {level:'warning', label:'Atenção', cls:'qty-warn'};
+    return {level:'normal', label:'Normal', cls:'qty-ok'};
+  }
+  function suggestedReplenishment(p){
+    const qty = Number(p.quantity)||0;
+    const ideal = Number(p.idealStock)||Number(p.minStock)||0;
+    return Math.max(0, ideal - qty);
+  }
+
+  function renderProdutosTable(filter){
+    const wrap = $('#produtos-table');
+    const term = (filter||'').toLowerCase().trim();
+    const list = products.filter(p =>
+      !term || p.name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term) ||
+      p.category.toLowerCase().includes(term) || (p.size||'').toLowerCase().includes(term) ||
+      (p.color||'').toLowerCase().includes(term) || (p.barcode||'').toLowerCase().includes(term)
+    );
+
+    if(products.length === 0){
+      wrap.innerHTML = `<div class="empty">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/></svg>
+        <div>Nenhum produto cadastrado ainda.<br>Clique em "Novo produto" para começar.</div>
+      </div>`;
+      return;
+    }
+    if(list.length === 0){
+      wrap.innerHTML = `<div class="empty">Nenhum resultado para "${term}".</div>`;
+      return;
+    }
+
+    // group by product name (case-insensitive) — Produto → Cor → Tamanho
+    const groups = [];
+    const groupIndex = new Map();
+    list.forEach(p=>{
+      const key = p.name.trim().toLowerCase();
+      if(!groupIndex.has(key)){
+        groupIndex.set(key, groups.length);
+        groups.push({ name: p.name, category: p.category, items: [] });
+      }
+      groups[groupIndex.get(key)].items.push(p);
+    });
+
+    const rowActionsHtml = (p) => `
+      <div class="row-actions">
+        <button class="icon-btn" title="Adicionar variação (tamanho/cor)" data-action="add-variant" data-id="${p.id}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="13" height="13" rx="2"/><path d="M8 21h11a2 2 0 0 0 2-2V8"/></svg>
+        </button>
+        <button class="icon-btn" title="Ajustar estoque" data-action="adjust" data-id="${p.id}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <button class="icon-btn" title="Editar" data-action="edit" data-id="${p.id}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+        </button>
+        <button class="icon-btn" title="Gerar etiqueta" data-action="label" data-id="${p.id}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="6" height="12"/><path d="M9 9h2M9 12h2M9 15h2"/><rect x="13" y="7" width="8" height="12" rx="1"/></svg>
+        </button>
+        <button class="icon-btn danger" title="Excluir" data-action="delete" data-id="${p.id}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>`;
+
+    const cards = groups.map(g=>{
+      const single = g.items.length === 1 && !g.items[0].size && !g.items[0].color;
+      const originSet = new Set(g.items.map(i=>i.origin));
+      const originBadges = Array.from(originSet).map(o => o==='fabricacao'
+        ? `<span class="move-badge move-in">Fabricação</span>`
+        : `<span class="move-badge move-miss">Compra</span>`).join(' ');
+
+      if(single){
+        const p = g.items[0];
+        const st = getStockStatus(p);
+        return `<div class="card" style="margin-bottom:12px; padding:16px 18px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:700; font-size:15px;">${p.name} ${originBadges}</div>
+              <div class="hint" style="margin-top:3px;">${p.category} · <span class="sku-chip">${p.sku}</span>${p.barcode?` · cód. barras: ${p.barcode}`:''}</div>
+              ${p.notes ? `<div class="hint" style="margin-top:3px;">${p.notes}</div>` : ''}
+            </div>
+            <div style="text-align:right;">
+              <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px;">${fmtMoney(p.price)}</div>
+              <span class="qty-badge ${st.cls}">${p.quantity} ${p.unit} · ${st.label}</span>
+            </div>
+          </div>
+          <div style="margin-top:12px;">${rowActionsHtml(p)}</div>
+        </div>`;
+      }
+
+      // grouped by color, each with a size sub-table
+      const byColor = new Map();
+      g.items.forEach(p=>{
+        const ck = (p.color||'—');
+        if(!byColor.has(ck)) byColor.set(ck, []);
+        byColor.get(ck).push(p);
+      });
+
+      const colorBlocks = Array.from(byColor.entries()).map(([color, items])=>{
+        const rowsHtml = items.map(p=>{
+          const st = getStockStatus(p);
+          return `<tr>
+            <td>${p.size || '—'}</td>
+            <td><span class="sku-chip">${p.sku}</span></td>
+            <td><span class="qty-badge ${st.cls}">${p.quantity}</span></td>
+            <td>${p.minStock}</td>
+            <td>${p.idealStock||p.minStock||0}</td>
+            <td><span class="move-badge ${st.level==='out'||st.level==='critical'?'move-out':(st.level==='warning'?'move-miss':'move-in')}">${st.label}</span></td>
+            <td>${rowActionsHtml(p)}</td>
+          </tr>`;
+        }).join('');
+        return `<div style="margin-top:10px;">
+          <div style="font-weight:600; font-size:12.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px;">Cor: ${color}</div>
+          <table><thead><tr><th>Tamanho</th><th>SKU</th><th>Atual</th><th>Mín</th><th>Ideal</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody>${rowsHtml}</tbody></table>
+        </div>`;
+      }).join('');
+
+      const totalQty = g.items.reduce((s,p)=>s+Number(p.quantity||0),0);
+
+      return `<div class="card" style="margin-bottom:14px; padding:18px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+          <div>
+            <div style="font-weight:700; font-size:16px;">${g.name} ${originBadges}</div>
+            <div class="hint" style="margin-top:3px;">${g.category} · ${g.items.length} variações</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="hint">Total em estoque</div>
+            <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:20px;">${totalQty} un.</div>
+          </div>
+        </div>
+        ${colorBlocks}
+      </div>`;
+    }).join('');
+
+    wrap.innerHTML = cards;
+  }
+
+  $('#search-input').addEventListener('input', (e)=>renderProdutosTable(e.target.value));
+
+  $('#produtos-table').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-action]');
+    if(!btn) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    const p = products.find(x=>x.id===id);
+    if(!p) return;
+    if(action === 'edit'){ fillForm(p); gotoPage('novo'); }
+    if(action === 'delete'){ deleteProduct(id); }
+    if(action === 'adjust'){ openAdjustModal(id); }
+    if(action === 'label'){ $('#e-product').value = id; gotoPage('etiquetas'); renderLabelPreview(); }
+    if(action === 'add-variant'){ openAddVariant(p); }
+  });
+
+  function deleteProduct(id){
+    const p = products.find(x=>x.id===id);
+    if(!p) return;
+    if(!confirm(`Excluir o produto "${p.name}" (${p.sku})? Essa ação não pode ser desfeita.`)) return;
+    products = products.filter(x=>x.id!==id);
+    saveData();
+    renderAll();
+    showToast('🗑️ Produto excluído.');
+  }
+
+  // ---------------- Adjust stock modal ----------------
+  function openAdjustModal(id){
+    adjustTargetId = id;
+    const p = products.find(x=>x.id===id);
+    $('#modal-title').textContent = 'Ajustar estoque';
+    $('#modal-sub').textContent = `${p.name} — estoque atual: ${p.quantity} ${p.unit}`;
+    $('#adjust-qty').value = 1;
+    setAdjustMode('in');
+    $('#modal-backdrop').classList.add('open');
+  }
+  function setAdjustMode(mode){
+    adjustMode = mode;
+    $('#btn-adjust-in').classList.toggle('sel-in', mode==='in');
+    $('#btn-adjust-out').classList.toggle('sel-out', mode==='out');
+    $('#adjust-reason').innerHTML = reasonOptionsHtml(mode);
+  }
+  $('#btn-adjust-in').addEventListener('click', ()=>setAdjustMode('in'));
+  $('#btn-adjust-out').addEventListener('click', ()=>setAdjustMode('out'));
+  $('#btn-adjust-cancel').addEventListener('click', ()=>$('#modal-backdrop').classList.remove('open'));
+  $('#btn-adjust-confirm').addEventListener('click', ()=>{
+    const p = products.find(x=>x.id===adjustTargetId);
+    if(!p) return;
+    const qty = parseInt($('#adjust-qty').value)||0;
+    if(qty<=0){ showToast('Informe uma quantidade válida.'); return; }
+    const reason = $('#adjust-reason').value;
+    logMovement(p, adjustMode, qty, reason);
+    saveData();
+    renderAll();
+    $('#modal-backdrop').classList.remove('open');
+    showToast('✅ Estoque atualizado.');
+  });
+
+  // ---------------- Dashboard ----------------
+  function isSameDay(ts, date){
+    const d = new Date(ts);
+    return d.getFullYear()===date.getFullYear() && d.getMonth()===date.getMonth() && d.getDate()===date.getDate();
+  }
+
+  function updateDashGreetingAndClock(){
+    const greetingEl = $('#dash-greeting');
+    const dateEl = $('#dash-date');
+    const clockEl = $('#dash-clock');
+    if(!greetingEl) return;
+    const now = new Date();
+    const hour = now.getHours();
+    const timeGreeting = hour < 12 ? 'Bom dia' : (hour < 18 ? 'Boa tarde' : 'Boa noite');
+    const name = (settings.currentUser || '').trim();
+    greetingEl.textContent = name ? `${timeGreeting}, ${name}!` : `${timeGreeting}!`;
+    dateEl.textContent = now.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long'});
+    if(clockEl) clockEl.textContent = now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  }
+  setInterval(updateDashGreetingAndClock, 30000);
+
+  function renderDashboard(){
+    updateDashGreetingAndClock();
+    const total = products.length;
+    const units = products.reduce((s,p)=>s+Number(p.quantity||0),0);
+    const value = products.reduce((s,p)=>s+Number(p.quantity||0)*Number(p.cost||0),0);
+    const lowList = products.filter(p=>getStockStatus(p).level==='critical' || getStockStatus(p).level==='warning');
+    const outList = products.filter(p=>Number(p.quantity||0)<=0);
+
+    const today = new Date();
+    const inToday = movements.filter(m=>m.type==='in' && isSameDay(m.timestamp, today)).reduce((s,m)=>s+m.qty,0);
+    const outToday = movements.filter(m=>m.type==='out' && isSameDay(m.timestamp, today)).reduce((s,m)=>s+m.qty,0);
+
+    $('#d-units').textContent = units;
+    $('#d-value').textContent = fmtMoney(value);
+    $('#d-low').textContent = lowList.length;
+    $('#d-out').textContent = outList.length;
+    $('#d-in-today').textContent = '+' + inToday;
+    $('#d-out-today').textContent = '-' + outToday;
+    $('#foot-total').textContent = total;
+    $('#foot-low').textContent = lowList.length;
+
+    // "Precisam de atenção": critical + out of stock first, sorted by urgency
+    const attention = products
+      .filter(p => getStockStatus(p).level !== 'normal')
+      .sort((a,b)=>{
+        const order = {out:0, critical:1, warning:2};
+        return order[getStockStatus(a).level] - order[getStockStatus(b).level];
+      })
+      .slice(0, 8);
+
+    $('#d-attention-count').textContent = attention.length;
+
+    const wrap = $('#d-attention-table');
+    if(attention.length===0){
+      wrap.innerHTML = `<div class="empty" style="padding:24px;">Nenhum item precisa de atenção agora. 🎉</div>`;
+      return;
+    }
+    wrap.innerHTML = `<table><thead><tr><th>SKU</th><th>Produto</th><th>Atual</th><th>Mínimo</th><th>Ideal</th><th>Status</th></tr></thead>
+      <tbody>${attention.map(p=>{
+        const st = getStockStatus(p);
+        return `<tr>
+        <td><span class="sku-chip">${p.sku}</span></td>
+        <td><b>${p.name}</b>${(p.size||p.color)?` <span class="hint">${[p.size,p.color].filter(Boolean).join(' / ')}</span>`:''}</td>
+        <td><span class="qty-badge ${st.cls}">${p.quantity} ${p.unit}</span></td>
+        <td>${p.minStock} ${p.unit}</td>
+        <td>${p.idealStock||p.minStock||0} ${p.unit}</td>
+        <td><span class="move-badge ${st.level==='out'||st.level==='critical'?'move-out':'move-miss'}">${st.label}</span></td>
+      </tr>`;}).join('')}</tbody></table>`;
+  }
+
+  // ---------------- Movimentar (lote por produto) ----------------
+  let bulkMode = 'in';
+  function uniqueProductNames(){
+    const seen = new Map();
+    products.forEach(p=>{
+      const key = p.name.trim().toLowerCase();
+      if(!seen.has(key)) seen.set(key, p.name);
+    });
+    return Array.from(seen.values());
+  }
+  function refreshBulkProductSelect(){
+    const sel = $('#bulk-product');
+    const current = sel.value;
+    const names = uniqueProductNames();
+    if(names.length===0){
+      sel.innerHTML = `<option value="">Nenhum produto cadastrado</option>`;
+      $('#bulk-variants-table').innerHTML = '';
+      return;
+    }
+    sel.innerHTML = names.map(n=>`<option value="${n}">${n}</option>`).join('');
+    if(current && names.includes(current)) sel.value = current;
+    renderBulkVariantsTable();
+  }
+  function setBulkMode(mode){
+    bulkMode = mode;
+    $('#bulk-mode-in').classList.toggle('sel-in', mode==='in');
+    $('#bulk-mode-out').classList.toggle('sel-out', mode==='out');
+    $('#bulk-reason').innerHTML = reasonOptionsHtml(mode);
+  }
+  $('#bulk-mode-in') && $('#bulk-mode-in').addEventListener('click', ()=>setBulkMode('in'));
+  $('#bulk-mode-out') && $('#bulk-mode-out').addEventListener('click', ()=>setBulkMode('out'));
+  $('#bulk-product') && $('#bulk-product').addEventListener('change', renderBulkVariantsTable);
+
+  function renderBulkVariantsTable(){
+    const wrap = $('#bulk-variants-table');
+    const name = $('#bulk-product').value;
+    if(!name){ wrap.innerHTML = `<div class="empty">Selecione um produto.</div>`; return; }
+    const items = products.filter(p=>p.name.trim().toLowerCase() === name.trim().toLowerCase());
+    if(items.length===0){ wrap.innerHTML = `<div class="empty">Nenhuma variação encontrada.</div>`; return; }
+    wrap.innerHTML = `<table><thead><tr><th>Cor</th><th>Tamanho</th><th>SKU</th><th>Estoque atual</th><th>Quantidade a movimentar</th></tr></thead>
+      <tbody>${items.map(p=>`<tr>
+        <td>${p.color||'—'}</td>
+        <td>${p.size||'—'}</td>
+        <td><span class="sku-chip">${p.sku}</span></td>
+        <td><span class="qty-badge ${getStockStatus(p).cls}">${p.quantity}</span></td>
+        <td><input type="number" min="0" value="0" data-bulk-id="${p.id}" style="width:90px;"></td>
+      </tr>`).join('')}</tbody></table>`;
+  }
+
+  $('#btn-bulk-confirm') && $('#btn-bulk-confirm').addEventListener('click', ()=>{
+    const name = $('#bulk-product').value;
+    if(!name){ showToast('⚠️ Selecione um produto.'); return; }
+    const inputs = $all('input[data-bulk-id]', $('#bulk-variants-table'));
+    const reason = $('#bulk-reason').value;
+    let count = 0;
+    inputs.forEach(inp=>{
+      const qty = parseInt(inp.value)||0;
+      if(qty<=0) return;
+      const p = products.find(x=>x.id===inp.dataset.bulkId);
+      if(!p) return;
+      logMovement(p, bulkMode, qty, reason);
+      count++;
+    });
+    if(count===0){ showToast('⚠️ Informe alguma quantidade maior que zero.'); return; }
+    saveData();
+    renderAll();
+    renderBulkVariantsTable();
+    showToast(`✅ ${count} variação(ões) movimentada(s) em lote.`);
+  });
+
+  // ---------------- Reposição ----------------
+  function computeConsumption(productId, days){
+    const cutoff = Date.now() - days*24*60*60*1000;
+    const outs = movements.filter(m=>m.productId===productId && m.type==='out' && m.timestamp >= cutoff);
+    if(outs.length < 2) return null; // not enough data to be meaningful
+    const totalQty = outs.reduce((s,m)=>s+m.qty,0);
+    return totalQty / days;
+  }
+
+  function renderReposicaoList(){
+    const wrap = $('#reposicao-list');
+    if(!wrap) return;
+    const term = ($('#reposicao-search').value||'').toLowerCase().trim();
+    const filterMode = $('#reposicao-filter').value;
+
+    let list = products.filter(p=>{
+      const st = getStockStatus(p);
+      if(filterMode==='critical' && st.level!=='critical' && st.level!=='out') return false;
+      if(filterMode==='below-min' && p.quantity >= p.minStock) return false;
+      if(filterMode==='all' && suggestedReplenishment(p)<=0) return false;
+      if(term && !(p.name.toLowerCase().includes(term) || (p.color||'').toLowerCase().includes(term) || (p.size||'').toLowerCase().includes(term) || p.sku.toLowerCase().includes(term))) return false;
+      return true;
+    });
+
+    list.sort((a,b)=>{
+      const order = {out:0, critical:1, warning:2, normal:3};
+      return order[getStockStatus(a).level] - order[getStockStatus(b).level];
+    });
+
+    if(list.length===0){
+      wrap.innerHTML = `<div class="empty" style="padding:30px;">Nenhum item precisa de reposição com esse filtro. 🎉</div>`;
+      return;
+    }
+
+    wrap.innerHTML = list.map(p=>{
+      const st = getStockStatus(p);
+      const suggestion = suggestedReplenishment(p);
+      const avg7 = computeConsumption(p.id, 7);
+      const avg30 = computeConsumption(p.id, 30);
+      const avg = avg7 != null ? avg7 : avg30;
+      let forecastHtml = '';
+      if(avg && avg > 0){
+        const daysLeft = p.quantity / avg;
+        const stockoutDate = new Date(Date.now() + daysLeft*24*60*60*1000);
+        const dateStr = stockoutDate.toLocaleDateString('pt-BR', {day:'2-digit', month:'long'});
+        forecastHtml = `<div class="hint" style="margin-top:6px;">Consumo médio: <b>${avg.toFixed(1)}/dia</b> · Estoque estimado para <b>${Math.max(0,daysLeft).toFixed(1)} dias</b> · previsão de ruptura: <b>${dateStr}</b></div>`;
+      }
+      const icon = st.level==='out' ? '🔴' : (st.level==='critical' ? '🔴' : '🟠');
+      return `<div class="card" style="margin-bottom:12px; padding:16px 18px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+          <div>
+            <div style="font-weight:700; font-size:14.5px;">${icon} ${p.name} ${(p.size||p.color)?`<span class="hint">${[p.size,p.color].filter(Boolean).join(' / ')}</span>`:''}</div>
+            <div class="hint" style="margin-top:2px;">SKU <span class="sku-chip">${p.sku}</span></div>
+            ${forecastHtml}
+          </div>
+          <div style="text-align:right;">
+            <div class="hint">Atual ${p.quantity} · Mín ${p.minStock} · Ideal ${p.idealStock||p.minStock||0}</div>
+            <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px; color:var(--amber-dark);">Repor ${suggestion} un.</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  $('#reposicao-search') && $('#reposicao-search').addEventListener('input', renderReposicaoList);
+  $('#reposicao-filter') && $('#reposicao-filter').addEventListener('change', renderReposicaoList);
+
+  // ---------------- Inventário (contagem física) ----------------
+  function refreshInvProductSelect(){
+    const sel = $('#inv-product');
+    const current = sel.value;
+    if(products.length===0){ sel.innerHTML = `<option value="">Nenhum produto cadastrado</option>`; return; }
+    sel.innerHTML = products.map(p=>{
+      const variant = [p.size, p.color].filter(Boolean).join(' / ');
+      return `<option value="${p.id}">${p.name}${variant?` (${variant})`:''} — ${p.sku}</option>`;
+    }).join('');
+    if(current && products.find(p=>p.id===current)) sel.value = current;
+    updateInvPreview();
+  }
+  function updateInvPreview(){
+    const p = products.find(x=>x.id === $('#inv-product').value);
+    if(!p){ $('#inv-system-qty').textContent = '—'; $('#inv-diff-preview').textContent=''; return; }
+    $('#inv-system-qty').textContent = `${p.quantity} ${p.unit}`;
+    updateInvDiff();
+  }
+  function updateInvDiff(){
+    const p = products.find(x=>x.id === $('#inv-product').value);
+    if(!p) return;
+    const physical = $('#inv-physical-qty').value;
+    if(physical===''){ $('#inv-diff-preview').textContent = ''; return; }
+    const diff = (parseInt(physical)||0) - p.quantity;
+    const sign = diff > 0 ? '+' : '';
+    $('#inv-diff-preview').innerHTML = `Diferença: <b style="color:${diff===0?'var(--success)':'var(--danger)'}">${sign}${diff}</b> ${p.unit}`;
+  }
+  $('#inv-product') && $('#inv-product').addEventListener('change', updateInvPreview);
+  $('#inv-physical-qty') && $('#inv-physical-qty').addEventListener('input', updateInvDiff);
+  $('#btn-inv-confirm') && $('#btn-inv-confirm').addEventListener('click', ()=>{
+    const p = products.find(x=>x.id === $('#inv-product').value);
+    if(!p){ showToast('⚠️ Selecione um produto.'); return; }
+    const physicalRaw = $('#inv-physical-qty').value;
+    if(physicalRaw===''){ showToast('⚠️ Informe a quantidade física contada.'); return; }
+    const physical = Math.max(0, parseInt(physicalRaw)||0);
+    const diff = physical - p.quantity;
+    if(diff === 0){ showToast('Quantidade física igual ao sistema — nada a ajustar.'); return; }
+    if(!confirm(`Confirmar ajuste de inventário de ${diff>0?'+':''}${diff} ${p.unit} para "${p.name}"?`)) return;
+    const type = diff > 0 ? 'in' : 'out';
+    logMovement(p, type, Math.abs(diff), 'ajuste');
+    saveData();
+    renderAll();
+    $('#inv-physical-qty').value = '';
+    updateInvPreview();
+    showToast(`✅ Inventário ajustado (${diff>0?'+':''}${diff} ${p.unit}).`);
+  });
+
+  // ---------------- Histórico ----------------
+  function renderHistorico(){
+    const wrap = $('#historico-table');
+    if(!wrap) return;
+    const term = ($('#hist-search').value||'').toLowerCase().trim();
+    const typeFilter = $('#hist-type-filter').value;
+    let list = movements.filter(m=>{
+      if(typeFilter!=='all' && m.type!==typeFilter) return false;
+      if(term && !(m.productName.toLowerCase().includes(term) || m.sku.toLowerCase().includes(term) || (m.user||'').toLowerCase().includes(term))) return false;
+      return true;
+    });
+    if(list.length===0){
+      wrap.innerHTML = `<div class="empty" style="padding:30px;">Nenhuma movimentação registrada ainda.</div>`;
+      return;
+    }
+    wrap.innerHTML = `<table><thead><tr><th>Data/hora</th><th>Produto</th><th>Tipo</th><th>Qtd</th><th>Estoque</th><th>Motivo</th><th>Usuário</th></tr></thead>
+      <tbody>${list.slice(0,300).map(m=>{
+        const dt = new Date(m.timestamp);
+        const dateStr = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        const variant = [m.size, m.color].filter(Boolean).join(' / ');
+        return `<tr>
+          <td class="mono" style="font-size:12px;">${dateStr}</td>
+          <td><b>${m.productName}</b>${variant?` <span class="hint">${variant}</span>`:''}<div class="hint">${m.sku}</div></td>
+          <td><span class="move-badge ${m.type==='in'?'move-in':'move-out'}">${m.type==='in'?'Entrada':'Saída'}</span></td>
+          <td class="mono">${m.type==='in'?'+':'-'}${m.qty}</td>
+          <td class="mono" style="font-size:12px;">${m.before} → ${m.after}</td>
+          <td>${reasonLabel(m.type, m.reason)}</td>
+          <td>${m.user || '—'}</td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  }
+  $('#hist-search') && $('#hist-search').addEventListener('input', renderHistorico);
+  $('#hist-type-filter') && $('#hist-type-filter').addEventListener('change', renderHistorico);
+
+  // ---------------- Configurações ----------------
+  function loadConfigPage(){
+    $('#cfg-username').value = settings.currentUser || '';
+  }
+  $('#btn-save-username') && $('#btn-save-username').addEventListener('click', ()=>{
+    settings.currentUser = $('#cfg-username').value.trim();
+    saveData();
+    showToast('✅ Nome salvo. Ele será registrado nas próximas movimentações.');
+  });
+
+  // ---------------- Etiquetas ----------------
+  function refreshProductSelect(){
+    const sel = $('#e-product');
+    const current = sel.value;
+    if(products.length===0){
+      sel.innerHTML = `<option value="">Nenhum produto cadastrado</option>`;
+      return;
+    }
+    sel.innerHTML = products.map(p=>{
+      const variant = [p.size, p.color].filter(Boolean).join(' / ');
+      return `<option value="${p.id}">${p.name}${variant ? ` (${variant})` : ''} — ${p.sku}</option>`;
+    }).join('');
+    if(current && products.find(p=>p.id===current)) sel.value = current;
+  }
+
+  function mmToPx(mm){ return mm * 3.78; } // approx 96dpi
+
+  function buildLabelInnerHTML(p, opts){
+    if(!p) return '';
+    const showName = opts.showName, showPrice = opts.showPrice, showSku = opts.showSku;
+    const variant = [p.size, p.color].filter(Boolean).join(' / ');
+    return `
+      ${showName ? `<div class="lname">${p.name}</div>` : ''}
+      ${variant ? `<div class="lname" style="font-weight:600; font-size:10px;">${variant}</div>` : ''}
+      <svg class="barcode-svg"></svg>
+      ${showSku ? `<div class="lsku">${p.sku}</div>` : ''}
+      ${showPrice ? `<div class="lprice">${fmtMoney(p.price)}</div>` : ''}
+    `;
+  }
+
+  function drawBarcode(svgEl, rawValue, format){
+    if(typeof JsBarcode === 'undefined'){
+      svgEl.outerHTML = `<div style="color:var(--danger); font-size:10px; text-align:center; padding:4px;">⚠️ Biblioteca de código de barras ainda não carregou (precisa de internet). Veja o aviso no Painel.</div>`;
+      return false;
+    }
+    // sanitize: strip invisible/non-printable characters that can silently break encoding
+    let value = (rawValue || '').toString().trim().replace(/[^\x20-\x7E]/g, '');
+
+    if(!value){
+      svgEl.outerHTML = `<div style="color:var(--danger); font-size:10px; text-align:center; padding:4px;">Sem valor para gerar o código de barras</div>`;
+      return false;
+    }
+    if(format === 'EAN13'){
+      const digits = value.replace(/\D/g,'');
+      if(digits.length !== 12 && digits.length !== 13){
+        svgEl.outerHTML = `<div style="color:var(--danger); font-size:10px; text-align:center; padding:4px;">EAN-13 precisa de 12 ou 13 dígitos numéricos (recebido: "${value}")</div>`;
+        return false;
+      }
+      value = digits;
+    }
+    if(format === 'CODE39'){
+      // CODE39 only supports uppercase letters, digits, space and - . $ / + %
+      value = value.toUpperCase().replace(/[^A-Z0-9\-. $\/+%]/g, '');
+      if(!value){
+        svgEl.outerHTML = `<div style="color:var(--danger); font-size:10px; text-align:center; padding:4px;">CODE39 não suporta os caracteres desse código. Tente CODE128.</div>`;
+        return false;
+      }
+    }
+    try{
+      JsBarcode(svgEl, value, {
+        format: format,
+        width: 1.6,
+        height: 34,
+        displayValue: false,
+        margin: 2
+      });
+      return true;
+    }catch(err){
+      svgEl.outerHTML = `<div style="color:var(--danger); font-size:10px; text-align:center; padding:4px;">Não foi possível gerar o código de barras (${format}) para "${value}"</div>`;
+      return false;
+    }
+  }
+
+  function getLabelOptions(){
+    return {
+      productId: $('#e-product').value,
+      format: $('#e-format').value,
+      width: Math.max(10, parseFloat($('#e-width').value)||60),
+      height: Math.max(8, parseFloat($('#e-height').value)||40),
+      showName: $('#e-show-name').checked,
+      showPrice: $('#e-show-price').checked,
+      showSku: $('#e-show-sku').checked,
+      copies: Math.max(1, parseInt($('#e-copies').value)||1)
+    };
+  }
+
+  function renderLabelPreview(){
+    refreshProductSelect();
+    const opts = getLabelOptions();
+    const area = $('#label-preview-area');
+    const p = products.find(x=>x.id===opts.productId);
+    if(!p){
+      area.innerHTML = `<div class="no-product-msg">Cadastre um produto para visualizar a etiqueta.</div>`;
+      return;
+    }
+    const wPx = mmToPx(opts.width);
+    const hPx = mmToPx(opts.height);
+    area.innerHTML = `<div class="label-box" style="width:${wPx}px; height:${hPx}px;">${buildLabelInnerHTML(p, opts)}</div>
+      <div class="hint">Pré-visualização em escala real (${opts.width}mm × ${opts.height}mm)</div>`;
+    const svg = area.querySelector('.barcode-svg');
+    if(svg) drawBarcode(svg, getBarcodeValue(p), opts.format);
+  }
+
+  ['e-product','e-format','e-width','e-height','e-show-name','e-show-price','e-show-sku','e-copies'].forEach(id=>{
+    $('#'+id).addEventListener('input', renderLabelPreview);
+    $('#'+id).addEventListener('change', renderLabelPreview);
+  });
+  // when picking a product, auto-load the barcode format saved for it
+  $('#e-product').addEventListener('change', ()=>{
+    const p = products.find(x=>x.id === $('#e-product').value);
+    $('#e-format').value = (p && p.barcodeFormat) ? p.barcodeFormat : 'CODE128';
+    renderLabelPreview();
+  });
+
+  $all('.preset-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      $('#e-width').value = chip.dataset.w;
+      $('#e-height').value = chip.dataset.h;
+      renderLabelPreview();
+    });
+  });
+
+  $('#copies-minus').addEventListener('click', ()=>{
+    const inp = $('#e-copies');
+    inp.value = Math.max(1, (parseInt(inp.value)||1) - 1);
+  });
+  $('#copies-plus').addEventListener('click', ()=>{
+    const inp = $('#e-copies');
+    inp.value = (parseInt(inp.value)||1) + 1;
+  });
+
+  $('#btn-print').addEventListener('click', ()=>{
+    const opts = getLabelOptions();
+    const p = products.find(x=>x.id===opts.productId);
+    if(!p){ showToast('Selecione um produto primeiro.'); return; }
+
+    if(!libsReady()){
+      showToast('⚠️ Impressão bloqueada: a biblioteca de código de barras não carregou. Verifique sua internet e veja o aviso no Painel.');
+      return;
+    }
+
+    let styleTag = document.getElementById('dynamic-page-style');
+    if(!styleTag){
+      styleTag = document.createElement('style');
+      styleTag.id = 'dynamic-page-style';
+      document.head.appendChild(styleTag);
+    }
+    styleTag.textContent = `@page{ size: ${opts.width}mm ${opts.height}mm; margin:0; }
+      .print-label{ width:${opts.width}mm; height:${opts.height}mm; }`;
+
+    const printArea = $('#print-area');
+    let html = '';
+    for(let i=0;i<opts.copies;i++){
+      html += `<div class="print-label">${buildLabelInnerHTML(p, opts)}</div>`;
+    }
+    printArea.innerHTML = html;
+
+    let allOk = true;
+    $all('.print-label', printArea).forEach(el=>{
+      const svg = el.querySelector('.barcode-svg');
+      if(svg){
+        const ok = drawBarcode(svg, getBarcodeValue(p), opts.format);
+        if(!ok) allOk = false;
+      }else{
+        allOk = false;
+      }
+    });
+
+    if(!allOk){
+      printArea.innerHTML = '';
+      showToast('⚠️ Impressão cancelada: o código de barras não pôde ser gerado para este produto. Nenhuma etiqueta em branco foi impressa.');
+      return;
+    }
+
+    setTimeout(()=>window.print(), 80);
+  });
+
+  // ---------------- Leitor (bipagem) ----------------
+  function setScannerMode(mode){
+    scannerMode = mode;
+    $('#scan-mode-in').classList.toggle('sel-in', mode==='in');
+    $('#scan-mode-out').classList.toggle('sel-out', mode==='out');
+    $('#scan-reason').innerHTML = reasonOptionsHtml(mode);
+  }
+  $('#scan-mode-in').addEventListener('click', ()=>setScannerMode('in'));
+  $('#scan-mode-out').addEventListener('click', ()=>setScannerMode('out'));
+
+  $('#scan-qty-minus').addEventListener('click', ()=>{
+    const inp = $('#scan-qty');
+    inp.value = Math.max(1, (parseInt(inp.value)||1) - 1);
+  });
+  $('#scan-qty-plus').addEventListener('click', ()=>{
+    const inp = $('#scan-qty');
+    inp.value = (parseInt(inp.value)||1) + 1;
+  });
+
+  function focusScanInput(){
+    const inp = $('#scan-input');
+    if(inp) setTimeout(()=>inp.focus(), 50);
+  }
+  // keep the scanner input focused while on this page (so a hardware scanner always works),
+  // but never steal focus from other interactive fields (selects, inputs, textareas, buttons)
+  document.addEventListener('click', (e)=>{
+    const page = $('#page-leitor');
+    if(!page || !page.classList.contains('active')) return;
+    if(e.target.closest('button, select, input, textarea, label, #camera-preview')) return;
+    focusScanInput();
+  });
+
+  function beep(kind){
+    try{
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if(!Ctx) return;
+      const ctx = new Ctx();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'sine';
+      g.gain.value = 0.16;
+      if(kind==='ok'){
+        o.frequency.value = 920;
+        o.start();
+        o.stop(ctx.currentTime + 0.09);
+      }else{
+        o.frequency.value = 200;
+        o.start();
+        o.stop(ctx.currentTime + 0.28);
+      }
+      setTimeout(()=>ctx.close(), 400);
+    }catch(e){}
+  }
+
+  function processScan(rawCode){
+    const code = (rawCode||'').trim();
+    if(!code) return;
+    const qty = Math.max(1, parseInt($('#scan-qty').value)||1);
+    const p = products.find(x =>
+      x.sku.toUpperCase() === code.toUpperCase() ||
+      (x.barcode && x.barcode.toUpperCase() === code.toUpperCase())
+    );
+    const entry = { time: Date.now(), code, mode: scannerMode, qty, found: !!p, productName: p ? p.name : null };
+
+    const resultEl = $('#scan-result');
+    const inputEl = $('#scan-input');
+
+    if(p){
+      const reason = $('#scan-reason').value;
+      logMovement(p, scannerMode, qty, reason);
+      saveData();
+      renderAll();
+      beep('ok');
+      inputEl.classList.remove('flash-err');
+      inputEl.classList.add('flash-ok');
+      resultEl.className = 'scan-result state-ok';
+      resultEl.innerHTML = `<div class="icon-circle">✓</div><div>
+        <div class="r-title">${p.name}</div>
+        <div class="r-sub">${scannerMode==='in' ? 'Entrada' : 'Saída'} de ${qty} ${p.unit} · novo estoque: ${p.quantity} ${p.unit} · SKU ${p.sku}</div>
+      </div>`;
+    }else{
+      beep('err');
+      inputEl.classList.remove('flash-ok');
+      inputEl.classList.add('flash-err');
+      resultEl.className = 'scan-result state-err';
+      resultEl.innerHTML = `<div class="icon-circle">✕</div><div>
+        <div class="r-title">Código não encontrado</div>
+        <div class="r-sub">"${code}" não corresponde a nenhum SKU cadastrado.</div>
+      </div>`;
+    }
+
+    scanLog.unshift(entry);
+    scanLog = scanLog.slice(0,30);
+    saveData();
+    renderScanLog();
+
+    setTimeout(()=>inputEl.classList.remove('flash-ok','flash-err'), 500);
+    inputEl.value = '';
+    focusScanInput();
+  }
+
+  $('#scan-input').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      processScan(e.target.value);
+    }
+  });
+
+  function renderScanLog(){
+    const wrap = $('#scan-log');
+    if(scanLog.length===0){
+      wrap.innerHTML = `<div class="empty">Nenhuma leitura ainda. Bipe um código para começar.</div>`;
+      return;
+    }
+    wrap.innerHTML = `<table><thead><tr><th>Hora</th><th>Código</th><th>Produto</th><th>Movimento</th><th>Qtd</th></tr></thead>
+      <tbody>${scanLog.map(l=>{
+        const t = new Date(l.time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+        const badge = !l.found ? `<span class="move-badge move-miss">não encontrado</span>` :
+          (l.mode==='in' ? `<span class="move-badge move-in">entrada</span>` : `<span class="move-badge move-out">saída</span>`);
+        return `<tr>
+          <td class="mono" style="font-size:12px;">${t}</td>
+          <td><span class="sku-chip">${l.code}</span></td>
+          <td>${l.productName || '—'}</td>
+          <td>${badge}</td>
+          <td class="mono">${l.qty}</td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  }
+
+  // ---------------- Camera scanning (Quagga) ----------------
+  let cameraActive = false;
+  $('#btn-toggle-camera').addEventListener('click', ()=>{
+    if(cameraActive) stopCamera(); else startCamera();
+  });
+
+  function startCamera(){
+    if(typeof Quagga === 'undefined'){
+      showToast('⚠️ Biblioteca de câmera não carregou (verifique sua conexão com a internet).');
+      return;
+    }
+    const box = $('#camera-preview');
+    box.style.display = 'block';
+    box.innerHTML = '';
+    Quagga.init({
+      inputStream: {
+        name: 'Live',
+        type: 'LiveStream',
+        target: box,
+        constraints: { facingMode: 'environment' }
+      },
+      decoder: { readers: ['code_128_reader','ean_reader','code_39_reader','upc_reader'] },
+      locate: true
+    }, function(err){
+      if(err){
+        console.error(err);
+        showToast('⚠️ Não foi possível acessar a câmera. Verifique a permissão do navegador.');
+        box.style.display = 'none';
+        return;
+      }
+      Quagga.start();
+      cameraActive = true;
+      $('#btn-toggle-camera').textContent = '📷 Parar câmera';
+    });
+
+    Quagga.offDetected(onDetected);
+    Quagga.onDetected(onDetected);
+  }
+
+  let lastCameraScan = 0;
+  function onDetected(result){
+    const now = Date.now();
+    if(now - lastCameraScan < 1500) return; // debounce repeated frames
+    lastCameraScan = now;
+    const code = result && result.codeResult && result.codeResult.code;
+    if(code) processScan(code);
+  }
+
+  function stopCamera(){
+    if(cameraActive && typeof Quagga !== 'undefined'){
+      try{ Quagga.stop(); }catch(e){}
+    }
+    cameraActive = false;
+    const btn = $('#btn-toggle-camera');
+    if(btn) btn.textContent = '📷 Usar câmera para ler';
+    const box = $('#camera-preview');
+    if(box){ box.style.display = 'none'; box.innerHTML=''; }
+  }
+
+  // ---------------- Render orchestration ----------------
+  function renderAll(){
+    renderDashboard();
+    renderProdutosTable($('#search-input').value);
+    refreshProductSelect();
+    renderLabelPreview();
+    renderScanLog();
+    renderLibsBanner();
+    refreshBulkProductSelect();
+    renderReposicaoList();
+    refreshInvProductSelect();
+    renderHistorico();
+  }
+
+  loadData();
+  renderLibsBanner();
+  renderGradeTable();
+  setVariantMode('single');
+  setAdjustMode('in');
+  setScannerMode('in');
+  setBulkMode('in');
+  applyTheme(currentTheme());
+  $('#btn-theme-toggle').addEventListener('click', ()=>{
+    applyTheme(currentTheme()==='dark' ? 'light' : 'dark');
   });
 })();
-
-loadState();
 <\/script>
 </body>
 </html>
