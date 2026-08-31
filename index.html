@@ -3907,10 +3907,10 @@ updateFloatingScrollbar();
     background:#fff; border:1.5px dashed #B8B4A8; display:flex; flex-direction:column; align-items:center; justify-content:center;
     padding:6px; gap:2px; overflow:hidden; color:#111;
   }
-  .label-box .lname{font-weight:700; font-size:11px; text-align:center; line-height:1.15; padding:0 4px; color:#111;}
-  .label-box .lprice{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:11px; color:#111;}
+  .label-box .lname, .lname{font-weight:700; font-size:11px; text-align:center; line-height:1.15; padding:0 4px; color:#111;}
+  .label-box .lprice, .lprice{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:11px; color:#111;}
   .label-box svg{max-width:100%;}
-  .label-box .lsku{font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.03em; color:#333;}
+  .label-box .lsku, .lsku{font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.03em; color:#333;}
   .no-product-msg{color:var(--muted); font-size:13.5px; text-align:center;}
 
   .copies-row{display:flex; align-items:center; gap:10px; margin-top:4px;}
@@ -3973,10 +3973,17 @@ updateFloatingScrollbar();
   /* ---------- Print ---------- */
   #print-area{display:none;}
   @media print{
-    body *{visibility:hidden;}
-    #print-area, #print-area *{visibility:visible;}
-    #print-area{display:block !important; position:absolute; top:0; left:0;}
-    .print-label{page-break-after:always; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+    html, body{background:#fff !important; margin:0 !important; padding:0 !important;}
+    /* Remove o resto do sistema do fluxo do documento (não só esconder visualmente) —
+       do contrário, o espaço invisível dele ainda conta na altura total da impressão,
+       gerando várias páginas em branco extras em etiquetas pequenas. */
+    body > *{display:none !important;}
+    body > #print-area{display:block !important;}
+    #print-area{position:static !important; margin:0 !important; padding:0 !important;}
+    .print-label{
+      page-break-after:always; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      overflow:hidden; background:#fff; padding:2px; gap:1px;
+    }
     .print-label:last-child{page-break-after:auto;}
   }
 
@@ -5772,20 +5779,40 @@ updateFloatingScrollbar();
 
   function mmToPx(mm){ return mm * 3.78; } // approx 96dpi
 
+  // Calcula tamanhos de fonte e altura do código de barras proporcionais ao
+  // tamanho físico da etiqueta, pra tudo caber sem vazar (nem precisar cortar)
+  // mesmo em etiquetas pequenas como 33x21mm ou 40x25mm.
+  function computeLabelScale(widthMm, heightMm, ctx){
+    const heightPx = mmToPx(heightMm);
+    const widthPx = mmToPx(widthMm);
+    const padPx = Math.max(1, Math.min(6, widthPx * 0.03));
+    const gap = Math.max(0.5, Math.min(2, heightPx * 0.015));
+    const avail = Math.max(14, heightPx - padPx*2);
+    const barcodeH = Math.max(10, Math.min(40, avail * 0.5));
+    const textAvail = Math.max(6, avail - barcodeH);
+    const linesCount = (ctx.showName?1:0) + (ctx.variantText?1:0) + (ctx.showSku?1:0) + (ctx.showPrice?1:0);
+    const perLine = linesCount > 0 ? textAvail / linesCount : textAvail;
+    const nameFont = Math.max(6, Math.min(13, perLine*0.82));
+    const skuFont = Math.max(5, Math.min(10, perLine*0.68));
+    const priceFont = Math.max(6, Math.min(12, perLine*0.78));
+    return { barcodeH, nameFont, skuFont, priceFont, gap, padPx };
+  }
+
   function buildLabelInnerHTML(p, opts){
     if(!p) return '';
     const showName = opts.showName, showPrice = opts.showPrice, showSku = opts.showSku;
     const variant = [p.size, p.color].filter(Boolean).join(' / ');
+    const scale = computeLabelScale(opts.width, opts.height, {showName, showSku, showPrice, variantText: variant});
     return `
-      ${showName ? `<div class="lname">${p.name}</div>` : ''}
-      ${variant ? `<div class="lname" style="font-weight:600; font-size:10px;">${variant}</div>` : ''}
-      <svg class="barcode-svg"></svg>
-      ${showSku ? `<div class="lsku">${p.sku}</div>` : ''}
-      ${showPrice ? `<div class="lprice">${fmtMoney(p.price)}</div>` : ''}
+      ${showName ? `<div class="lname" style="font-size:${scale.nameFont}px;">${p.name}</div>` : ''}
+      ${variant ? `<div class="lname" style="font-weight:600; font-size:${Math.max(5, scale.nameFont-1)}px;">${variant}</div>` : ''}
+      <svg class="barcode-svg" data-barcode-h="${scale.barcodeH}"></svg>
+      ${showSku ? `<div class="lsku" style="font-size:${scale.skuFont}px;">${p.sku}</div>` : ''}
+      ${showPrice ? `<div class="lprice" style="font-size:${scale.priceFont}px;">${fmtMoney(p.price)}</div>` : ''}
     `;
   }
 
-  function drawBarcode(svgEl, rawValue, format){
+  function drawBarcode(svgEl, rawValue, format, barcodeHeight){
     if(typeof JsBarcode === 'undefined'){
       svgEl.outerHTML = `<div style="color:var(--danger); font-size:10px; text-align:center; padding:4px;">⚠️ Biblioteca de código de barras ainda não carregou (precisa de internet). Veja o aviso no Painel.</div>`;
       return false;
@@ -5817,7 +5844,7 @@ updateFloatingScrollbar();
       JsBarcode(svgEl, value, {
         format: format,
         width: 1.6,
-        height: 34,
+        height: barcodeHeight || 34,
         displayValue: false,
         margin: 2
       });
@@ -5855,7 +5882,7 @@ updateFloatingScrollbar();
     area.innerHTML = `<div class="label-box" style="width:${wPx}px; height:${hPx}px;">${buildLabelInnerHTML(p, opts)}</div>
       <div class="hint">Pré-visualização em escala real (${opts.width}mm × ${opts.height}mm)</div>`;
     const svg = area.querySelector('.barcode-svg');
-    if(svg) drawBarcode(svg, getBarcodeValue(p), opts.format);
+    if(svg) drawBarcode(svg, getBarcodeValue(p), opts.format, parseFloat(svg.dataset.barcodeH));
   }
 
   ['e-product','e-format','e-width','e-height','e-show-name','e-show-price','e-show-sku','e-copies'].forEach(id=>{
@@ -5916,7 +5943,7 @@ updateFloatingScrollbar();
     $all('.print-label', printArea).forEach(el=>{
       const svg = el.querySelector('.barcode-svg');
       if(svg){
-        const ok = drawBarcode(svg, getBarcodeValue(p), opts.format);
+        const ok = drawBarcode(svg, getBarcodeValue(p), opts.format, parseFloat(svg.dataset.barcodeH));
         if(!ok) allOk = false;
       }else{
         allOk = false;
