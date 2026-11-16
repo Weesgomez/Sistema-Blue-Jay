@@ -6270,7 +6270,10 @@ updateFloatingScrollbar();
     {id:'guilherme', name:'GUILHERME',  type:'simples', price:27, defaultStatus:'NÃO PAGO'},
     {id:'beico',     name:'BEIÇO',      type:'simples', price:27, defaultStatus:'PAGO'},
     {id:'kimberly',  name:'KIMBERLY',   type:'simples', price:27, defaultStatus:'NÃO PAGO'},
-    {id:'gra',       name:'GRA',        type:'simples', price:22, defaultStatus:'NÃO PAGO'}
+    {id:'gra',       name:'GRA',        type:'simples', price:22, defaultStatus:'NÃO PAGO'},
+    {id:'pablo',     name:'PABLO',      type:'simples', price:27, defaultStatus:'NÃO PAGO'},
+    {id:'deverson',  name:'DEVERSON',   type:'simples', price:27, defaultStatus:'NÃO PAGO'},
+    {id:'fabricio',  name:'FABRICIO',   type:'simples', price:27, defaultStatus:'NÃO PAGO'}
   ];
 
   var MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -6393,7 +6396,29 @@ updateFloatingScrollbar();
     return { quinzenas: [ buildSeedQuinzena() ], selectedQuinzenaId: null, selectedPersonId: 'ALL' };
   }
 
+  // Garante que toda pessoa da lista PEOPLE exista em todas as quinzenas salvas (preço, status
+  // e lançamentos diários). Pessoas adicionadas depois entram zeradas nas quinzenas antigas,
+  // marcadas como PAGO (não devem nada nelas); nas quinzenas novas usam o status padrão.
+  function ensurePeopleInState(){
+    if(!state || !state.quinzenas) return;
+    state.quinzenas.forEach(function(q){
+      if(!q.prices) q.prices = {};
+      if(!q.status) q.status = {};
+      PEOPLE.forEach(function(p){
+        if(!q.prices[p.id]) q.prices[p.id] = p.type==='duplo' ? {a:p.priceA, b:p.priceB} : {v:p.price};
+        if(!q.status[p.id]) q.status[p.id] = 'PAGO';
+      });
+      (q.days||[]).forEach(function(day){
+        if(!day.entries) day.entries = {};
+        PEOPLE.forEach(function(p){
+          if(!day.entries[p.id]) day.entries[p.id] = emptyPersonDay(p);
+        });
+      });
+    });
+  }
+
   state = loadInitialState();
+  ensurePeopleInState();
   if(!state.selectedQuinzenaId) state.selectedQuinzenaId = state.quinzenas[state.quinzenas.length-1].id;
   if(!state.selectedPersonId) state.selectedPersonId = 'ALL';
 
@@ -7339,6 +7364,7 @@ updateFloatingScrollbar();
         var parsed = JSON.parse(reader.result);
         if(!parsed.quinzenas || !parsed.quinzenas.length) throw new Error('Arquivo inválido.');
         state = parsed;
+        ensurePeopleInState();
         if(!state.selectedQuinzenaId) state.selectedQuinzenaId = state.quinzenas[state.quinzenas.length-1].id;
         if(!state.selectedPersonId) state.selectedPersonId = 'ALL';
         render();
@@ -7448,6 +7474,7 @@ updateFloatingScrollbar();
         var row = res.data;
         if(row && row.data && row.data.quinzenas && row.data.quinzenas.length){
           state = row.data;
+          ensurePeopleInState();
           if(!state.selectedQuinzenaId) state.selectedQuinzenaId = state.quinzenas[state.quinzenas.length-1].id;
           if(!state.selectedPersonId) state.selectedPersonId = 'ALL';
           lastSavedSnapshot = JSON.stringify(state);
@@ -7622,6 +7649,7 @@ updateFloatingScrollbar();
     supabaseClient.from('app_state_history').select('data').eq('id', id).single().then(function(res){
       if(res.error || !res.data){ alert('Não foi possível carregar essa versão.'); return; }
       state = res.data.data;
+      ensurePeopleInState();
       if(!state.selectedQuinzenaId) state.selectedQuinzenaId = state.quinzenas[state.quinzenas.length-1].id;
       if(!state.selectedPersonId) state.selectedPersonId = 'ALL';
       render();
