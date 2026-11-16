@@ -164,6 +164,10 @@
     transition:border-color .15s, box-shadow .15s, background .15s;
   }
   td input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); background:var(--panel-3);}
+  /* Tabela diária com 3 produtos: colunas mais compactas pra caber Saldo total sem rolar */
+  #person-table-wrap th{white-space:normal; line-height:1.25; vertical-align:bottom;}
+  #person-table-wrap th, #person-table-wrap td{padding-left:5px; padding-right:5px;}
+  #person-table-wrap td input{width:52px; padding:6px 6px;}
   tbody tr:hover{background:rgba(255,255,255,.02);}
   tr.total-row td{font-weight:700; border-top:1px solid var(--line-strong); border-bottom:none; background:var(--panel-2); color:var(--ink);}
   .tag{padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:.02em; border:1px solid;}
@@ -6276,6 +6280,21 @@ updateFloatingScrollbar();
     {id:'fabricio',  name:'FABRICIO',   type:'simples', price:27, defaultStatus:'NÃO PAGO'}
   ];
 
+  // Produtos que todo mundo pode ter. Os campos de quantidade/devolução/preço de "Camiseta"
+  // mudam de nome conforme o histórico (Kaique sempre usou qc/devc/a; os demais q/dev/v),
+  // pra que os dados já salvos continuem valendo sem precisar converter nada.
+  var BLUSA_PRICE = 50, ECOBAG_PRICE = 10;
+  function personItems(p){
+    var cam = p.type==='duplo'
+      ? {key:'cam', label:'Camiseta', q:'qc', dev:'devc', price:'a', def:p.priceA}
+      : {key:'cam', label:'Camiseta', q:'q',  dev:'dev',  price:'v', def:p.price};
+    return [
+      cam,
+      {key:'blu', label:'Blusa',  q:'qb', dev:'devb', price:'b', def:(p.type==='duplo' ? p.priceB : BLUSA_PRICE)},
+      {key:'eco', label:'Ecobag', q:'qe', dev:'deve', price:'e', def:ECOBAG_PRICE}
+    ];
+  }
+
   var MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
   function pad(n){ return n<10 ? '0'+n : ''+n; }
@@ -6286,16 +6305,19 @@ updateFloatingScrollbar();
   function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
 
   function emptyPersonDay(p){
-    if(p.type==='duplo') return {qc:0, qb:0, devc:0, devb:0};
-    return {q:0, dev:0};
+    var o = {};
+    personItems(p).forEach(function(it){ o[it.q] = 0; o[it.dev] = 0; });
+    return o;
+  }
+  function defaultPersonPrices(p){
+    var o = {};
+    personItems(p).forEach(function(it){ o[it.price] = it.def; });
+    return o;
   }
 
   function defaultPrices(){
     var prices = {};
-    PEOPLE.forEach(function(p){
-      if(p.type==='duplo') prices[p.id] = {a:p.priceA, b:p.priceB};
-      else prices[p.id] = {v:p.price};
-    });
+    PEOPLE.forEach(function(p){ prices[p.id] = defaultPersonPrices(p); });
     return prices;
   }
 
@@ -6405,13 +6427,21 @@ updateFloatingScrollbar();
       if(!q.prices) q.prices = {};
       if(!q.status) q.status = {};
       PEOPLE.forEach(function(p){
-        if(!q.prices[p.id]) q.prices[p.id] = p.type==='duplo' ? {a:p.priceA, b:p.priceB} : {v:p.price};
+        if(!q.prices[p.id]) q.prices[p.id] = {};
+        personItems(p).forEach(function(it){
+          if(typeof q.prices[p.id][it.price] !== 'number') q.prices[p.id][it.price] = it.def;
+        });
         if(!q.status[p.id]) q.status[p.id] = 'PAGO';
       });
       (q.days||[]).forEach(function(day){
         if(!day.entries) day.entries = {};
         PEOPLE.forEach(function(p){
-          if(!day.entries[p.id]) day.entries[p.id] = emptyPersonDay(p);
+          if(!day.entries[p.id]) day.entries[p.id] = {};
+          var e = day.entries[p.id];
+          personItems(p).forEach(function(it){
+            if(typeof e[it.q] !== 'number') e[it.q] = Number(e[it.q])||0;
+            if(typeof e[it.dev] !== 'number') e[it.dev] = Number(e[it.dev])||0;
+          });
         });
       });
     });
@@ -6427,40 +6457,33 @@ updateFloatingScrollbar();
   function currentQuinzena(){ return getQuinzena(state.selectedQuinzenaId); }
 
   // ---------- Fórmulas (idênticas às da última quinzena da planilha) ----------
-  function calcSimples(entry, price){
-    var q = Number(entry.q)||0, dev = Number(entry.dev)||0;
-    var saldoDevedor = q*price;
-    var saldoTotal = (q-dev)*price;
-    return {saldoDevedor:saldoDevedor, saldoTotal:saldoTotal};
-  }
-  function calcDuplo(entry, priceA, priceB){
-    var qc=Number(entry.qc)||0, qb=Number(entry.qb)||0, devc=Number(entry.devc)||0, devb=Number(entry.devb)||0;
-    var saldoA = qc*priceA, saldoB = qb*priceB;
-    var saldoTotal = saldoA + saldoB - (devc*priceA) - (devb*priceB);
-    return {saldoA:saldoA, saldoB:saldoB, saldoTotal:saldoTotal};
+  // Calcula um dia de uma pessoa: por produto, saldo bruto (qtd × preço) e líquido ((qtd − dev) × preço).
+  function calcDay(p, entry, prices){
+    var items = personItems(p).map(function(it){
+      var qq = Number(entry[it.q])||0, dd = Number(entry[it.dev])||0, pr = Number(prices[it.price])||0;
+      return {key:it.key, label:it.label, q:qq, dev:dd, price:pr, saldoBruto:qq*pr, saldoLiquido:(qq-dd)*pr};
+    });
+    var total = 0;
+    items.forEach(function(i){ total += i.saldoLiquido; });
+    return {items:items, saldoTotal:total};
   }
 
   function quinzenaTotals(q, personId){
     var p = getPerson(personId);
-    var price = q.prices[personId];
-    if(p.type==='simples'){
-      var sq=0, sdev=0, ssd=0, sst=0;
-      q.days.forEach(function(day){
-        var e = day.entries[personId];
-        var c = calcSimples(e, price.v);
-        sq += Number(e.q)||0; sdev += Number(e.dev)||0; ssd += c.saldoDevedor; sst += c.saldoTotal;
+    var price = q.prices[personId] || {};
+    var items = personItems(p).map(function(it){ return {key:it.key, label:it.label, q:0, dev:0, saldoBruto:0, saldoLiquido:0}; });
+    var saldoTotal = 0;
+    q.days.forEach(function(day){
+      var c = calcDay(p, day.entries[personId] || {}, price);
+      c.items.forEach(function(ci, idx){
+        items[idx].q += ci.q; items[idx].dev += ci.dev;
+        items[idx].saldoBruto += ci.saldoBruto; items[idx].saldoLiquido += ci.saldoLiquido;
       });
-      return {q:sq, dev:sdev, saldoDevedor:ssd, saldoTotal:sst};
-    } else {
-      var sqc=0, sqb=0, sdevc=0, sdevb=0, ssa=0, ssb=0, sst2=0;
-      q.days.forEach(function(day){
-        var e = day.entries[personId];
-        var c = calcDuplo(e, price.a, price.b);
-        sqc += Number(e.qc)||0; sqb += Number(e.qb)||0; sdevc += Number(e.devc)||0; sdevb += Number(e.devb)||0;
-        ssa += c.saldoA; ssb += c.saldoB; sst2 += c.saldoTotal;
-      });
-      return {qc:sqc, qb:sqb, devc:sdevc, devb:sdevb, saldoA:ssa, saldoB:ssb, saldoTotal:sst2};
-    }
+      saldoTotal += c.saldoTotal;
+    });
+    var tq=0, tdev=0;
+    items.forEach(function(i){ tq += i.q; tdev += i.dev; });
+    return {items:items, q:tq, dev:tdev, saldoTotal:saldoTotal};
   }
 
   function money(v){
@@ -6531,7 +6554,7 @@ updateFloatingScrollbar();
     var totalSaldo=0, totalAberto=0, totalPago=0, pessoasAberto=0, pessoasPagas=0, totalItens=0;
     filteredPeople.forEach(function(p){
       var t = quinzenaTotals(q, p.id);
-      var qtd = p.type==='simples' ? t.q : (t.qc+t.qb);
+      var qtd = t.q;
       totalSaldo += t.saldoTotal;
       totalItens += qtd;
       if(q.status[p.id]==='PAGO'){ totalPago += t.saldoTotal; pessoasPagas++; }
@@ -6621,31 +6644,15 @@ updateFloatingScrollbar();
     var p = getPerson(state.selectedPersonId);
     if(!p) return;
 
-    if(p.type==='simples'){
+    personItems(p).forEach(function(it){
       var lbl = document.createElement('label');
-      lbl.innerHTML = 'Preço por unidade&nbsp;';
+      lbl.innerHTML = 'Preço '+it.label+'&nbsp;';
       var inp = document.createElement('input');
-      inp.type='number'; inp.step='0.01'; inp.value = q.prices[p.id].v;
-      inp.addEventListener('input', function(){ q.prices[p.id].v = Number(inp.value)||0; renderPersonTable(); renderResumoQuinzena(); renderResumoGeral(); renderKpis(); scheduleSave(); });
+      inp.type='number'; inp.step='0.01'; inp.value = q.prices[p.id][it.price];
+      inp.addEventListener('input', function(){ q.prices[p.id][it.price] = Number(inp.value)||0; renderPersonTable(); renderResumoQuinzena(); renderResumoGeral(); renderKpis(); scheduleSave(); });
       lbl.appendChild(inp);
       wrap.appendChild(lbl);
-    } else {
-      var lblA = document.createElement('label');
-      lblA.innerHTML = 'Preço '+p.labelA+'&nbsp;';
-      var inpA = document.createElement('input');
-      inpA.type='number'; inpA.step='0.01'; inpA.value = q.prices[p.id].a;
-      inpA.addEventListener('input', function(){ q.prices[p.id].a = Number(inpA.value)||0; renderPersonTable(); renderResumoQuinzena(); renderResumoGeral(); renderKpis(); scheduleSave(); });
-      lblA.appendChild(inpA);
-      wrap.appendChild(lblA);
-
-      var lblB = document.createElement('label');
-      lblB.innerHTML = 'Preço '+p.labelB+'&nbsp;';
-      var inpB = document.createElement('input');
-      inpB.type='number'; inpB.step='0.01'; inpB.value = q.prices[p.id].b;
-      inpB.addEventListener('input', function(){ q.prices[p.id].b = Number(inpB.value)||0; renderPersonTable(); renderResumoQuinzena(); renderResumoGeral(); renderKpis(); scheduleSave(); });
-      lblB.appendChild(inpB);
-      wrap.appendChild(lblB);
-    }
+    });
 
     var statusLbl = document.createElement('label');
     statusLbl.innerHTML = 'Status da quinzena&nbsp;';
@@ -6715,15 +6722,34 @@ updateFloatingScrollbar();
 
     var thead = document.createElement('thead');
     var trh = document.createElement('tr');
-    var headers = p.type==='simples'
-      ? ['Data','Quantidade','Saldo devedor','Devolução','Saldo total']
-      : ['Data','Qtd. '+p.labelA,'Saldo '+p.labelA,'Qtd. '+p.labelB,'Saldo '+p.labelB,'Dev. '+p.labelA,'Dev. '+p.labelB,'Saldo total'];
+    var its = personItems(p);
+    var headers = ['Data'];
+    its.forEach(function(it){ headers.push('Qtd. '+it.label); headers.push('Saldo '+it.label); });
+    its.forEach(function(it){ headers.push('Dev. '+it.label); });
+    headers.push('Saldo total');
     headers.forEach(function(h){ var th=document.createElement('th'); th.textContent=h; trh.appendChild(th); });
     thead.appendChild(trh);
     table.appendChild(thead);
 
     var tbody = document.createElement('tbody');
-    var totals = p.type==='simples' ? {q:0,dev:0,saldoDevedor:0,saldoTotal:0} : {qc:0,qb:0,devc:0,devb:0,saldoA:0,saldoB:0,saldoTotal:0};
+    var totals = {q:its.map(function(){return 0;}), dev:its.map(function(){return 0;}), saldo:its.map(function(){return 0;}), saldoTotal:0};
+
+    function numInput(entryObj, field){
+      var td = document.createElement('td');
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.min='0'; inp.value = entryObj[field] || 0;
+      inp.addEventListener('input', function(){
+        entryObj[field] = Number(inp.value)||0;
+        renderPersonTable();
+        renderResumoQuinzena();
+        renderResumoGeral();
+        renderKpis();
+        scheduleSave();
+      });
+      td.appendChild(inp);
+      return td;
+    }
+    function moneyCell(v){ var td=document.createElement('td'); td.innerHTML = '<span class="money">'+money(v)+'</span>'; return td; }
 
     q.days.forEach(function(day){
       var e = day.entries[p.id];
@@ -6736,46 +6762,19 @@ updateFloatingScrollbar();
       tdDate.innerHTML = fmtDate(day.date) + '<span class="day-abbrev">'+DIAS_ABREV[dow]+'</span>';
       tr.appendChild(tdDate);
 
-      if(p.type==='simples'){
-        var price = q.prices[p.id].v;
-        var c = calcSimples(e, price);
-        tr.appendChild(numInput(e, 'q'));
-        tr.appendChild(moneyCell(c.saldoDevedor));
-        tr.appendChild(numInput(e, 'dev'));
-        tr.appendChild(moneyCell(c.saldoTotal));
-        totals.q += Number(e.q)||0; totals.dev += Number(e.dev)||0;
-        totals.saldoDevedor += c.saldoDevedor; totals.saldoTotal += c.saldoTotal;
-      } else {
-        var pa = q.prices[p.id].a, pb = q.prices[p.id].b;
-        var c2 = calcDuplo(e, pa, pb);
-        tr.appendChild(numInput(e, 'qc'));
-        tr.appendChild(moneyCell(c2.saldoA));
-        tr.appendChild(numInput(e, 'qb'));
-        tr.appendChild(moneyCell(c2.saldoB));
-        tr.appendChild(numInput(e, 'devc'));
-        tr.appendChild(numInput(e, 'devb'));
-        tr.appendChild(moneyCell(c2.saldoTotal));
-        totals.qc += Number(e.qc)||0; totals.qb += Number(e.qb)||0;
-        totals.devc += Number(e.devc)||0; totals.devb += Number(e.devb)||0;
-        totals.saldoA += c2.saldoA; totals.saldoB += c2.saldoB; totals.saldoTotal += c2.saldoTotal;
-      }
-
-      function numInput(entryObj, field){
-        var td = document.createElement('td');
-        var inp = document.createElement('input');
-        inp.type = 'number'; inp.min='0'; inp.value = entryObj[field];
-        inp.addEventListener('input', function(){
-          entryObj[field] = Number(inp.value)||0;
-          renderPersonTable();
-          renderResumoQuinzena();
-          renderResumoGeral();
-          renderKpis();
-          scheduleSave();
-        });
-        td.appendChild(inp);
-        return td;
-      }
-      function moneyCell(v){ var td=document.createElement('td'); td.innerHTML = '<span class="money">'+money(v)+'</span>'; return td; }
+      var c = calcDay(p, e, q.prices[p.id]);
+      its.forEach(function(it, idx){
+        tr.appendChild(numInput(e, it.q));
+        tr.appendChild(moneyCell(c.items[idx].saldoBruto));
+        totals.q[idx] += c.items[idx].q;
+        totals.saldo[idx] += c.items[idx].saldoBruto;
+      });
+      its.forEach(function(it, idx){
+        tr.appendChild(numInput(e, it.dev));
+        totals.dev[idx] += c.items[idx].dev;
+      });
+      tr.appendChild(moneyCell(c.saldoTotal));
+      totals.saldoTotal += c.saldoTotal;
 
       tbody.appendChild(tr);
     });
@@ -6790,20 +6789,12 @@ updateFloatingScrollbar();
       else td.textContent = v;
       return td;
     }
-    if(p.type==='simples'){
-      trt.appendChild(totalCell(totals.q, false));
-      trt.appendChild(totalCell(money(totals.saldoDevedor), true));
-      trt.appendChild(totalCell(totals.dev, false));
-      trt.appendChild(totalCell(money(totals.saldoTotal), true));
-    } else {
-      trt.appendChild(totalCell(totals.qc, false));
-      trt.appendChild(totalCell(money(totals.saldoA), true));
-      trt.appendChild(totalCell(totals.qb, false));
-      trt.appendChild(totalCell(money(totals.saldoB), true));
-      trt.appendChild(totalCell(totals.devc, false));
-      trt.appendChild(totalCell(totals.devb, false));
-      trt.appendChild(totalCell(money(totals.saldoTotal), true));
-    }
+    its.forEach(function(it, idx){
+      trt.appendChild(totalCell(totals.q[idx], false));
+      trt.appendChild(totalCell(money(totals.saldo[idx]), true));
+    });
+    its.forEach(function(it, idx){ trt.appendChild(totalCell(totals.dev[idx], false)); });
+    trt.appendChild(totalCell(money(totals.saldoTotal), true));
     tfoot.appendChild(trt);
     table.appendChild(tfoot);
 
@@ -6819,8 +6810,7 @@ updateFloatingScrollbar();
     PEOPLE.forEach(function(p){
       var t = quinzenaTotals(q, p.id);
       var qtd, dev, saldo;
-      if(p.type==='simples'){ qtd=t.q; dev=t.dev; saldo=t.saldoTotal; }
-      else { qtd=t.qc+t.qb; dev=t.devc+t.devb; saldo=t.saldoTotal; }
+      qtd=t.q; dev=t.dev; saldo=t.saldoTotal;
       grandTotal += saldo;
       var statusVal = q.status[p.id];
       var tagClass = statusVal==='PAGO' ? 'pago' : 'nao';
@@ -7090,43 +7080,42 @@ updateFloatingScrollbar();
     var statusVal = q.status[person.id];
     var linhas = [];
     var wknd = [];
+    // No relatório só entram os produtos que tiveram movimento na quinzena (mínimo: Camiseta).
+    var shown = [];
+    totals.items.forEach(function(i, idx){ if(i.q !== 0 || i.dev !== 0) shown.push(idx); });
+    if(!shown.length) shown = [0];
     q.days.forEach(function(day){
       var e = day.entries[person.id];
       var dow = fromISO(day.date).getDay();
       var dataLabel = fmtDate(day.date) + ' ('+DIAS_ABREV[dow]+')';
-      var temMovimento;
-      var cols;
-      if(person.type==='simples'){
-        var price = q.prices[person.id].v;
-        var c = calcSimples(e, price);
-        temMovimento = (Number(e.q)||0) !== 0 || (Number(e.dev)||0) !== 0;
-        cols = [dataLabel, e.q, money(c.saldoTotal), e.dev, money(c.saldoTotal)];
-      } else {
-        var pa = q.prices[person.id].a, pb = q.prices[person.id].b;
-        var c2 = calcDuplo(e, pa, pb);
-        temMovimento = (Number(e.qc)||0) !== 0 || (Number(e.qb)||0) !== 0 || (Number(e.devc)||0) !== 0 || (Number(e.devb)||0) !== 0;
-        var qc=Number(e.qc)||0, qb=Number(e.qb)||0, devc=Number(e.devc)||0, devb=Number(e.devb)||0;
-        var saldoALiquido = (qc-devc)*pa, saldoBLiquido = (qb-devb)*pb;
-        cols = [dataLabel, e.qc, money(saldoALiquido), e.qb, money(saldoBLiquido), e.devc, e.devb, money(c2.saldoTotal)];
-      }
+      var c = calcDay(person, e, q.prices[person.id]);
+      var temMovimento = c.items.some(function(i){ return i.q !== 0 || i.dev !== 0; });
+      var cols = [dataLabel];
+      shown.forEach(function(idx){ cols.push(c.items[idx].q); cols.push(money(c.items[idx].saldoLiquido)); });
+      shown.forEach(function(idx){ cols.push(c.items[idx].dev); });
+      cols.push(money(c.saldoTotal));
       if(temMovimento){ linhas.push(cols); wknd.push(dow===0 || dow===6); }
     });
 
-    var headers = person.type==='simples'
-      ? ['Data','Quantidade','Saldo devedor','Devolução','Saldo total']
-      : ['Data','Qtd. '+person.labelA,'Saldo '+person.labelA,'Qtd. '+person.labelB,'Saldo '+person.labelB,'Dev. '+person.labelA,'Dev. '+person.labelB,'Saldo total'];
-    var moneyCols = person.type==='simples' ? [2,4] : [2,4,7];
+    var headers = ['Data'];
+    shown.forEach(function(idx){ var l = totals.items[idx].label; headers.push('Qtd. '+l); headers.push('Saldo '+l); });
+    shown.forEach(function(idx){ headers.push('Dev. '+totals.items[idx].label); });
+    headers.push('Saldo total');
+    var moneyCols = [];
+    shown.forEach(function(idx, k){ moneyCols.push(2 + k*2); });
+    moneyCols.push(headers.length-1);
 
-    var qtdVendida = person.type==='simples' ? totals.q : (totals.qc + totals.qb);
-    var qtdDevolvida = person.type==='simples' ? totals.dev : (totals.devc + totals.devb);
+    var qtdVendida = totals.q;
+    var qtdDevolvida = totals.dev;
     var qtdLiquida = qtdVendida - qtdDevolvida;
 
+    // Se tiver mais de um produto, mostra a quantidade de cada um no total a pagar.
     var breakdown = null;
-    if(person.type==='duplo'){
-      breakdown = [
-        { label: person.labelA, qtd: totals.qc - totals.devc, dev: totals.devc },
-        { label: person.labelB, qtd: totals.qb - totals.devb, dev: totals.devb }
-      ];
+    if(shown.length > 1){
+      breakdown = shown.map(function(idx){
+        var i = totals.items[idx];
+        return { label: i.label, qtd: i.q - i.dev, dev: i.dev };
+      });
     }
 
     return {
